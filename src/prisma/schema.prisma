@@ -1,0 +1,292 @@
+// =============================================================================
+// Sprint Management Tool — Prisma Schema
+// Database: PostgreSQL
+// ORM: Prisma
+// Environment: Self-hosted VPS (Ubuntu)
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum SystemRole {
+  ADMIN
+  USER
+}
+
+enum TeamRole {
+  TEAM_LEAD
+  MEMBER
+}
+
+enum ProjectRole {
+  MANAGER
+  MEMBER
+}
+
+enum SprintStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum IssueStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum IssuePriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum IssueType {
+  TASK
+  BUG
+  STORY
+}
+
+enum NotificationType {
+  ISSUE_ASSIGNED
+  ISSUE_COMMENTED
+  SPRINT_STARTED
+  SPRINT_CLOSED
+}
+
+// =============================================================================
+// USER
+// =============================================================================
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  fullName     String
+  avatarUrl    String?
+  role         SystemRole @default(USER)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  teamMemberships    TeamMember[]
+  projectMemberships ProjectMember[]
+  createdTeams       Team[]          @relation("TeamCreatedBy")
+  createdProjects    Project[]       @relation("ProjectCreatedBy")
+  createdSprints     Sprint[]        @relation("SprintCreatedBy")
+  assignedIssues     Issue[]         @relation("IssueAssignee")
+  reportedIssues     Issue[]         @relation("IssueReporter")
+  comments           Comment[]
+  notifications      Notification[]
+
+  @@index([email])
+  @@index([isActive])
+  @@map("users")
+}
+
+// =============================================================================
+// TEAM
+// =============================================================================
+
+model Team {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  createdBy User         @relation("TeamCreatedBy", fields: [createdById], references: [id])
+  members   TeamMember[]
+  projects  Project[]
+
+  @@index([name])
+  @@map("teams")
+}
+
+// =============================================================================
+// TEAM MEMBER  (Junction: User <-> Team)
+// =============================================================================
+
+model TeamMember {
+  id       String   @id @default(uuid())
+  userId   String
+  teamId   String
+  role     TeamRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@index([teamId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+// =============================================================================
+// PROJECT
+// =============================================================================
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  key         String   @unique  // e.g. "ENG", "MKT" — unique across the system
+  description String?
+  teamId      String?           // Nullable: a project may exist outside any team
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  team      Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdBy User            @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  members   ProjectMember[]
+  sprints   Sprint[]
+  issues    Issue[]
+
+  @@index([teamId])
+  @@index([key])
+  @@map("projects")
+}
+
+// =============================================================================
+// PROJECT MEMBER  (Junction: User <-> Project)
+// =============================================================================
+
+model ProjectMember {
+  id        String      @id @default(uuid())
+  userId    String
+  projectId String
+  role      ProjectRole @default(MEMBER)
+  joinedAt  DateTime    @default(now())
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+// =============================================================================
+// SPRINT
+// =============================================================================
+
+model Sprint {
+  id          String       @id @default(uuid())
+  projectId   String
+  name        String
+  status      SprintStatus @default(DRAFT)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy     User           @relation("SprintCreatedBy", fields: [createdById], references: [id])
+  issues        Issue[]
+  notifications Notification[]
+
+  @@index([projectId])
+  @@index([projectId, status])
+  @@map("sprints")
+}
+
+// =============================================================================
+// ISSUE
+// =============================================================================
+
+model Issue {
+  id           String        @id @default(uuid())
+  projectId    String
+  sprintId     String?       // NULL = issue lives in the backlog
+  title        String
+  description  String?
+  type         IssueType     @default(TASK)
+  status       IssueStatus   @default(TODO)
+  priority     IssuePriority @default(MEDIUM)
+  assigneeId   String?       // Nullable: issue may be unassigned
+  reporterId   String
+  backlogOrder Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // Relations
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprint   Sprint?  @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  assignee User?    @relation("IssueAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  reporter User     @relation("IssueReporter", fields: [reporterId], references: [id])
+
+  comments      Comment[]
+  notifications Notification[]
+
+  @@index([projectId])
+  @@index([sprintId])
+  @@index([assigneeId])
+  @@index([projectId, status])
+  @@index([projectId, sprintId, backlogOrder])
+  @@map("issues")
+}
+
+// =============================================================================
+// COMMENT
+// =============================================================================
+
+model Comment {
+  id        String   @id @default(uuid())
+  issueId   String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  issue  Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  author User  @relation(fields: [authorId], references: [id])
+
+  @@index([issueId])
+  @@index([authorId])
+  @@map("comments")
+}
+
+// =============================================================================
+// NOTIFICATION
+// =============================================================================
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           // Recipient
+  type      NotificationType
+  issueId   String?          // Context for ISSUE_ASSIGNED, ISSUE_COMMENTED
+  sprintId  String?          // Context for SPRINT_STARTED, SPRINT_CLOSED
+  message   String           // Pre-rendered human-readable string, e.g. "Ali assigned you to 'Fix login bug'"
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issue  Issue?  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  sprint Sprint? @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId])
+  @@map("notifications")
+}
