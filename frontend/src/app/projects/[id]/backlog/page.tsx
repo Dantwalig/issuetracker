@@ -167,7 +167,7 @@ export default function BacklogPage() {
             <span>Status</span>
             <span>Reporter</span>
             <span>Updated</span>
-            {activeSprint && <span>Sprint</span>}
+            {activeSprint && isManager && <span>Sprint</span>}
           </div>
 
           {issues.map((issue, index) => (

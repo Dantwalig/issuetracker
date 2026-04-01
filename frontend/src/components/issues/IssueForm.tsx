@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
+import { usersApi } from '@/lib/users-api';
 import { Issue, IssueType, IssueStatus, IssuePriority } from '@/types';
 import styles from './IssueForm.module.css';
 
@@ -11,6 +13,7 @@ type IssueFormData = {
   type?: IssueType;
   status?: IssueStatus;
   priority?: IssuePriority;
+  assigneeId?: string;
 };
 
 interface Props {
@@ -23,7 +26,14 @@ interface Props {
   statusOnly?: boolean;
 }
 
-export function IssueForm({ defaultValues, onSubmit, onCancel, loading, submitLabel = 'Create issue', statusOnly = false }: Props) {
+export function IssueForm({
+  defaultValues,
+  onSubmit,
+  onCancel,
+  loading,
+  submitLabel = 'Create issue',
+  statusOnly = false,
+}: Props) {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<IssueFormData>({
     defaultValues: {
       title: defaultValues?.title ?? '',
@@ -31,7 +41,16 @@ export function IssueForm({ defaultValues, onSubmit, onCancel, loading, submitLa
       type: defaultValues?.type ?? 'TASK',
       status: defaultValues?.status ?? 'TODO',
       priority: defaultValues?.priority ?? 'MEDIUM',
+      assigneeId: defaultValues?.assigneeId ?? '',
     },
+  });
+
+  // Fetch project members for the assignee dropdown.
+  // Only fetch when the full form is shown (not in statusOnly mode).
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: usersApi.list,
+    enabled: !statusOnly,
   });
 
   useEffect(() => {
@@ -42,10 +61,12 @@ export function IssueForm({ defaultValues, onSubmit, onCancel, loading, submitLa
         type: defaultValues.type ?? 'TASK',
         status: defaultValues.status ?? 'TODO',
         priority: defaultValues.priority ?? 'MEDIUM',
+        assigneeId: defaultValues.assigneeId ?? '',
       });
     }
   }, [defaultValues, reset]);
 
+  // Status-only mode: rendered for assignees who may only change status
   if (statusOnly) {
     return (
       <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
@@ -53,12 +74,16 @@ export function IssueForm({ defaultValues, onSubmit, onCancel, loading, submitLa
           <label className={styles.label}>Status</label>
           <select className={styles.select} {...register('status')}>
             {(['TODO', 'IN_PROGRESS', 'DONE'] as IssueStatus[]).map((s) => (
-              <option key={s} value={s}>{s === 'IN_PROGRESS' ? 'In Progress' : s.charAt(0) + s.slice(1).toLowerCase()}</option>
+              <option key={s} value={s}>
+                {s === 'IN_PROGRESS' ? 'In Progress' : s.charAt(0) + s.slice(1).toLowerCase()}
+              </option>
             ))}
           </select>
         </div>
         <div className={styles.actions}>
-          <button type="button" className={styles.cancelBtn} onClick={onCancel} disabled={loading}>Cancel</button>
+          <button type="button" className={styles.cancelBtn} onClick={onCancel} disabled={loading}>
+            Cancel
+          </button>
           <button type="submit" className={styles.submitBtn} disabled={loading}>
             {loading ? 'Saving…' : submitLabel}
           </button>
@@ -70,11 +95,16 @@ export function IssueForm({ defaultValues, onSubmit, onCancel, loading, submitLa
   return (
     <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
       <div className={styles.field}>
-        <label className={styles.label}>Title <span className={styles.req}>*</span></label>
+        <label className={styles.label}>
+          Title <span className={styles.req}>*</span>
+        </label>
         <input
           className={`${styles.input} ${errors.title ? styles.inputError : ''}`}
           placeholder="Short, descriptive title…"
-          {...register('title', { required: 'Title is required', minLength: { value: 3, message: 'Min 3 characters' } })}
+          {...register('title', {
+            required: 'Title is required',
+            minLength: { value: 3, message: 'Min 3 characters' },
+          })}
         />
         {errors.title && <span className={styles.errorMsg}>{errors.title.message}</span>}
       </div>
@@ -94,7 +124,9 @@ export function IssueForm({ defaultValues, onSubmit, onCancel, loading, submitLa
           <label className={styles.label}>Type</label>
           <select className={styles.select} {...register('type')}>
             {(['TASK', 'BUG', 'STORY'] as IssueType[]).map((t) => (
-              <option key={t} value={t}>{t.charAt(0) + t.slice(1).toLowerCase()}</option>
+              <option key={t} value={t}>
+                {t.charAt(0) + t.slice(1).toLowerCase()}
+              </option>
             ))}
           </select>
         </div>
@@ -103,7 +135,9 @@ export function IssueForm({ defaultValues, onSubmit, onCancel, loading, submitLa
           <label className={styles.label}>Priority</label>
           <select className={styles.select} {...register('priority')}>
             {(['LOW', 'MEDIUM', 'HIGH'] as IssuePriority[]).map((p) => (
-              <option key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</option>
+              <option key={p} value={p}>
+                {p.charAt(0) + p.slice(1).toLowerCase()}
+              </option>
             ))}
           </select>
         </div>
@@ -112,14 +146,30 @@ export function IssueForm({ defaultValues, onSubmit, onCancel, loading, submitLa
           <label className={styles.label}>Status</label>
           <select className={styles.select} {...register('status')}>
             {(['TODO', 'IN_PROGRESS', 'DONE'] as IssueStatus[]).map((s) => (
-              <option key={s} value={s}>{s === 'IN_PROGRESS' ? 'In Progress' : s.charAt(0) + s.slice(1).toLowerCase()}</option>
+              <option key={s} value={s}>
+                {s === 'IN_PROGRESS' ? 'In Progress' : s.charAt(0) + s.slice(1).toLowerCase()}
+              </option>
             ))}
           </select>
         </div>
       </div>
 
+      <div className={styles.field}>
+        <label className={styles.label}>Assignee</label>
+        <select className={styles.select} {...register('assigneeId')}>
+          <option value="">— unassigned —</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.fullName} ({u.email})
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className={styles.actions}>
-        <button type="button" className={styles.cancelBtn} onClick={onCancel} disabled={loading}>Cancel</button>
+        <button type="button" className={styles.cancelBtn} onClick={onCancel} disabled={loading}>
+          Cancel
+        </button>
         <button type="submit" className={styles.submitBtn} disabled={loading}>
           {loading ? 'Saving…' : submitLabel}
         </button>

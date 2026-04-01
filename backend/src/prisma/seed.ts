@@ -19,6 +19,14 @@ async function main() {
     create: { email: 'member@example.com', passwordHash: memberHash, fullName: 'Team Member', role: Role.MEMBER },
   });
 
+  // Third user intentionally NOT added to the team or project.
+  // Use this account to test that non-members are correctly blocked from project routes.
+  await prisma.user.upsert({
+    where: { email: 'memberb@example.com' },
+    update: {},
+    create: { email: 'memberb@example.com', passwordHash: memberHash, fullName: 'Member B', role: Role.MEMBER },
+  });
+
   const team = await prisma.team.upsert({
     where: { name: 'Engineering' },
     update: {},
@@ -74,8 +82,9 @@ async function main() {
   });
 
   console.log('Seed complete.');
-  console.log('Admin:  admin@example.com  / admin123');
-  console.log('Member: member@example.com / member123');
+  console.log('Admin:    admin@example.com   / admin123');
+  console.log('Member:   member@example.com  / member123');
+  console.log('Member B: memberb@example.com / member123  (not in any project — use for permission tests)');
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());

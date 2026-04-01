@@ -233,6 +233,8 @@ export class SprintsService {
     });
     let nextOrder = (backlogMax._max.backlogOrder ?? -1) + 1;
 
+    // Only issues that are NOT DONE return to the backlog.
+    // DONE issues remain associated with the completed sprint as a historical record.
     const unfinished = await this.prisma.issue.findMany({
       where: { sprintId, status: { not: 'DONE' } },
       select: { id: true },
@@ -243,14 +245,11 @@ export class SprintsService {
         where: { id: sprintId },
         data: { status: 'COMPLETED' },
       }),
-      this.prisma.issue.updateMany({
-        where: { sprintId },
-        data: { sprintId: null, backlogOrder: null },
-      }),
+      // Move only unfinished issues back to the backlog with proper ordering
       ...unfinished.map((issue, i) =>
         this.prisma.issue.update({
           where: { id: issue.id },
-          data: { backlogOrder: nextOrder + i },
+          data: { sprintId: null, backlogOrder: nextOrder + i },
         }),
       ),
     ]);

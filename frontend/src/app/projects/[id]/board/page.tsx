@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { boardApi, BoardColumns } from '@/lib/board-api';
 import { projectsApi } from '@/lib/projects-api';
+import { useAuth } from '@/lib/auth-context';
+import { canUpdateIssueStatus } from '@/lib/permissions';
 import { Issue, IssueStatus } from '@/types';
 import { PriorityBadge, TypeBadge } from '@/components/ui/Badge';
 import { formatDistanceToNow } from 'date-fns';
@@ -20,6 +22,10 @@ export default function BoardPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
+  const { user } = useAuth();
+
+  // dragError is shown when a user tries to move a card they don't have permission to update
+  const [dragError, setDragError] = useState<string | null>(null);
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -43,6 +49,7 @@ export default function BoardPage() {
     mutationFn: ({ issueId, status }: { issueId: string; status: IssueStatus }) =>
       boardApi.updateStatus(projectId, issueId, status),
     onSuccess: (updated) => {
+      setDragError(null);
       // Merge the updated issue back into the server cache
       qc.setQueryData(['board', projectId], (prev: typeof board) => {
         if (!prev) return prev;
@@ -61,10 +68,13 @@ export default function BoardPage() {
       });
       setOptimisticColumns(null);
     },
-    onError: () => {
+    onError: (error: any) => {
       // Roll back optimistic update
       setOptimisticColumns(null);
       qc.invalidateQueries({ queryKey: ['board', projectId] });
+      const msg =
+        error?.response?.data?.message ?? 'You do not have permission to update this issue';
+      setDragError(typeof msg === 'string' ? msg : msg[0] ?? 'Update failed');
     },
   });
 
@@ -104,6 +114,13 @@ export default function BoardPage() {
         return;
       }
 
+      // Check permission before attempting the update
+      if (!canUpdateIssueStatus(user, drag.issue)) {
+        dragIssueRef.current = null;
+        setDragError('You can only move issues you reported or are assigned to');
+        return;
+      }
+
       // Apply optimistic update immediately
       const currentCols = board?.columns ?? { TODO: [], IN_PROGRESS: [], DONE: [] };
       const next: BoardColumns = {
@@ -118,7 +135,7 @@ export default function BoardPage() {
       statusMutation.mutate({ issueId: drag.issue.id, status: toStatus });
       dragIssueRef.current = null;
     },
-    [board, statusMutation],
+    [board, statusMutation, user],
   );
 
   const handleDragEnd = useCallback(() => {
@@ -216,6 +233,19 @@ export default function BoardPage() {
         )}
       </div>
 
+      {dragError && (
+        <div className={styles.dragError} role="alert">
+          {dragError}
+          <button
+            className={styles.dragErrorClose}
+            onClick={() => setDragError(null)}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div className={styles.board}>
         {COLUMNS.map(({ key, label }) => (
           <Column
@@ -232,6 +262,7 @@ export default function BoardPage() {
             onIssueClick={(issue) =>
               router.push(`/projects/${projectId}/issues/${issue.id}`)
             }
+            currentUser={user}
           />
         ))}
       </div>
@@ -252,6 +283,7 @@ interface ColumnProps {
   onDragStart: (issue: Issue, status: IssueStatus) => void;
   onDragEnd: () => void;
   onIssueClick: (issue: Issue) => void;
+  currentUser: ReturnType<typeof useAuth>['user'];
 }
 
 function Column({
@@ -265,6 +297,7 @@ function Column({
   onDragStart,
   onDragEnd,
   onIssueClick,
+  currentUser,
 }: ColumnProps) {
   return (
     <div
@@ -287,6 +320,7 @@ function Column({
             key={issue.id}
             issue={issue}
             status={status}
+            canDrag={canUpdateIssueStatus(currentUser, issue)}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             onClick={() => onIssueClick(issue)}
@@ -307,18 +341,19 @@ function Column({
 interface CardProps {
   issue: Issue;
   status: IssueStatus;
+  canDrag: boolean;
   onDragStart: (issue: Issue, status: IssueStatus) => void;
   onDragEnd: () => void;
   onClick: () => void;
 }
 
-function IssueCard({ issue, status, onDragStart, onDragEnd, onClick }: CardProps) {
+function IssueCard({ issue, status, canDrag, onDragStart, onDragEnd, onClick }: CardProps) {
   return (
     <div
-      className={styles.card}
-      draggable
-      onDragStart={() => onDragStart(issue, status)}
-      onDragEnd={onDragEnd}
+      className={`${styles.card} ${!canDrag ? styles.cardReadOnly : ''}`}
+      draggable={canDrag}
+      onDragStart={canDrag ? () => onDragStart(issue, status) : undefined}
+      onDragEnd={canDrag ? onDragEnd : undefined}
       onClick={onClick}
       role="button"
       tabIndex={0}

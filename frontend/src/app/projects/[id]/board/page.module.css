@@ -331,3 +331,47 @@
 }
 
 .sprintsBtn:hover { opacity: 0.88; }
+
+/* ── Permission-aware drag state ──────────────────────────────────────────── */
+
+.cardReadOnly {
+  cursor: default;
+  opacity: 0.82;
+}
+
+.cardReadOnly:active {
+  transform: none;
+}
+
+/* ── Drag error banner ────────────────────────────────────────────────────── */
+
+.dragError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: color-mix(in srgb, var(--red, #e05252) 12%, var(--bg-2));
+  border: 1px solid var(--red, #e05252);
+  color: var(--red, #e05252);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.dragErrorClose {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.1s;
+}
+
+.dragErrorClose:hover {
+  opacity: 1;
+}

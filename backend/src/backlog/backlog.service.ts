@@ -112,7 +112,7 @@ export class BacklogService {
     }
 
     if (sprintId === null) {
-      // Moving to backlog: append at end
+      // Moving to backlog: any project member is allowed — append at end
       const backlogMax = await this.prisma.issue.aggregate({
         where: { projectId, sprintId: null },
         _max: { backlogOrder: true },
@@ -124,6 +124,10 @@ export class BacklogService {
         select: issueSelect,
       });
     } else {
+      // Moving INTO a sprint: admin only (consistent with sprint planning controls)
+      if (userRole !== 'ADMIN') {
+        throw new ForbiddenException('Only admins can move issues into a sprint');
+      }
       // Moving into a sprint: validate sprint exists and is not completed
       const sprint = await this.prisma.sprint.findUnique({
         where: { id: sprintId },
