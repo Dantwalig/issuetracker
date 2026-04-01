@@ -11,7 +11,7 @@ import {
 import { BacklogService } from './backlog.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { IsArray, IsString, IsOptional } from 'class-validator';
+import { IsArray, IsString, IsOptional, ValidateIf } from 'class-validator';
 
 class ReorderBacklogDto {
   @IsArray()
@@ -20,7 +20,12 @@ class ReorderBacklogDto {
 }
 
 class MoveIssueDto {
+  // sprintId = null  → move issue to backlog
+  // sprintId = <id>  → move issue into that sprint
+  // @IsString() rejects null, so guard it with ValidateIf so only non-null
+  // values are checked for string format.
   @IsOptional()
+  @ValidateIf((o) => o.sprintId !== null)
   @IsString()
   sprintId: string | null;
 }

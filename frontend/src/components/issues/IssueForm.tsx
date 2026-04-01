@@ -66,10 +66,19 @@ export function IssueForm({
     }
   }, [defaultValues, reset]);
 
+  // Sanitize form data before passing upstream: convert empty assigneeId string
+  // to undefined so the API receives a proper null/absent field rather than "".
+  function sanitize(data: IssueFormData): IssueFormData {
+    return {
+      ...data,
+      assigneeId: data.assigneeId?.trim() || undefined,
+    };
+  }
+
   // Status-only mode: rendered for assignees who may only change status
   if (statusOnly) {
     return (
-      <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+      <form className={styles.form} onSubmit={handleSubmit((d) => onSubmit(sanitize(d)))}>
         <div className={styles.field}>
           <label className={styles.label}>Status</label>
           <select className={styles.select} {...register('status')}>
@@ -93,7 +102,7 @@ export function IssueForm({
   }
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+    <form className={styles.form} onSubmit={handleSubmit((d) => onSubmit(sanitize(d)))}>
       <div className={styles.field}>
         <label className={styles.label}>
           Title <span className={styles.req}>*</span>

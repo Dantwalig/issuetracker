@@ -127,9 +127,38 @@ export class AuthService {
     });
   }
 
-  async listUsers() {
+  async listUsers(callerId: string, callerRole: string) {
+    // Admins see everyone. Regular members see only users who share at least
+    // one project with them — prevents enumeration of unrelated accounts.
+    if (callerRole === 'ADMIN') {
+      return this.prisma.user.findMany({
+        where: { isActive: true },
+        select: { id: true, email: true, fullName: true, role: true, isActive: true, createdAt: true },
+        orderBy: { fullName: 'asc' },
+      });
+    }
+
+    // Collect all project IDs the caller belongs to
+    const memberships = await this.prisma.projectMember.findMany({
+      where: { userId: callerId },
+      select: { projectId: true },
+    });
+    const projectIds = memberships.map((m) => m.projectId);
+
+    if (projectIds.length === 0) {
+      // Caller has no projects — return only themselves so the form still works
+      return this.prisma.user.findMany({
+        where: { id: callerId, isActive: true },
+        select: { id: true, email: true, fullName: true, role: true, isActive: true, createdAt: true },
+      });
+    }
+
+    // Return all active users who are members of any of those same projects
     return this.prisma.user.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        projectMembers: { some: { projectId: { in: projectIds } } },
+      },
       select: { id: true, email: true, fullName: true, role: true, isActive: true, createdAt: true },
       orderBy: { fullName: 'asc' },
     });

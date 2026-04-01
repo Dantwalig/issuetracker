@@ -43,7 +43,7 @@ export class AuthController {
 
   @Get('users')
   @UseGuards(JwtAuthGuard)
-  listUsers() {
-    return this.authService.listUsers();
+  listUsers(@CurrentUser() user: { id: string; role: string }) {
+    return this.authService.listUsers(user.id, user.role);
   }
 }

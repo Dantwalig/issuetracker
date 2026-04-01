@@ -72,6 +72,16 @@ export class BacklogService {
       select: { id: true },
     });
     const backlogIdSet = new Set(issues.map((i) => i.id));
+
+    // Completeness check: caller must send every backlog issue, not just a subset.
+    // A partial list would leave omitted issues with stale backlogOrder values,
+    // silently corrupting sort order.
+    if (orderedIds.length !== backlogIdSet.size) {
+      throw new BadRequestException(
+        `orderedIds must contain every backlog issue (expected ${backlogIdSet.size}, got ${orderedIds.length})`,
+      );
+    }
+
     for (const id of orderedIds) {
       if (!backlogIdSet.has(id)) {
         throw new BadRequestException(
