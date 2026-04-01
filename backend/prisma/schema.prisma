@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum IssueType {
+  TASK
+  BUG
+  STORY
+}
+
+enum IssueStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum IssuePriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  passwordHash     String
+  fullName         String
+  role             Role     @default(MEMBER)
+  isActive         Boolean  @default(true)
+  refreshTokenHash String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  reportedIssues  Issue[]         @relation("Reporter")
+  assignedIssues  Issue[]         @relation("Assignee")
+  teamMemberships TeamMember[]
+  projectMembers  ProjectMember[]
+
+  @@map("users")
+}
+
+model Team {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  members  TeamMember[]
+  projects Project[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  teamId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@map("team_members")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  teamId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team    Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  members ProjectMember[]
+  issues  Issue[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  projectId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@map("project_members")
+}
+
+model Issue {
+  id            String        @id @default(cuid())
+  title         String
+  description   String?
+  type          IssueType     @default(TASK)
+  status        IssueStatus   @default(TODO)
+  priority      IssuePriority @default(MEDIUM)
+  assigneeId    String?
+  reporterId    String
+  projectId     String
+  sprintId      String?       // null = backlog
+  backlogOrder  Int?          // ordering within the backlog; null when in a sprint
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  reporter User    @relation("Reporter", fields: [reporterId], references: [id])
+  assignee User?   @relation("Assignee", fields: [assigneeId], references: [id])
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("issues")
+}

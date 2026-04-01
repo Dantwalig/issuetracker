@@ -1,0 +1,25 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+}
+
+/* Status */
+.todo       { background: var(--bg-3);      color: var(--text-2);  border: 1px solid var(--border); }
+.inProgress { background: var(--blue-dim);  color: var(--blue);    border: 1px solid var(--blue); }
+.done       { background: var(--green-dim); color: var(--green);   border: 1px solid var(--green); }
+
+/* Priority */
+.low    { background: var(--bg-3);       color: var(--text-2);   border: 1px solid var(--border); }
+.medium { background: var(--yellow-dim); color: var(--yellow);   border: 1px solid var(--yellow); }
+.high   { background: var(--red-dim);    color: var(--red);      border: 1px solid var(--red); }
+
+/* Type */
+.task  { background: var(--bg-3);        color: var(--text-2);   border: 1px solid var(--border); }
+.bug   { background: var(--red-dim);     color: var(--red);      border: 1px solid var(--red); }
+.story { background: var(--purple-dim);  color: var(--purple);   border: 1px solid var(--purple); }
