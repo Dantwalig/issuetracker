@@ -8,6 +8,7 @@ import { projectsApi } from '@/lib/projects-api';
 import { StatusBadge, PriorityBadge, TypeBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { IssueForm } from '@/components/issues/IssueForm';
+import { IssueComments } from '@/components/issues/IssueComments';
 import { format } from 'date-fns';
 import styles from './page.module.css';
 
@@ -111,6 +112,8 @@ export default function IssueDetailPage() {
             <span className={styles.metaValue}>{format(new Date(issue.updatedAt), 'MMM d, yyyy · HH:mm')}</span>
           </div>
         </div>
+
+        <IssueComments issueId={issueId} />
       </div>
 
       {showEdit && (

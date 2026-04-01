@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth-context';
 import styles from './Sidebar.module.css';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { NotificationBell } from './NotificationBell';
 
 export function Sidebar() {
   const { user, logout } = useAuth();
@@ -45,6 +46,7 @@ export function Sidebar() {
             <span className={styles.userRole}>{user?.role}</span>
           </div>
         </div>
+        <NotificationBell />
         <button className={styles.logoutBtn} onClick={logout} title="Sign out">
           <LogoutIcon />
         </button>

@@ -4,6 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateIssueDto, UpdateIssueDto } from './dto/issue.dto';
 
 const issueSelect = {
@@ -33,7 +34,10 @@ const issueSelect = {
 
 @Injectable()
 export class IssuesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   private async assertProjectAccess(projectId: string, userId: string, userRole: string) {
     const project = await this.prisma.project.findUnique({
@@ -50,10 +54,24 @@ export class IssuesService {
 
   async create(dto: CreateIssueDto, reporterId: string, userRole: string) {
     await this.assertProjectAccess(dto.projectId, reporterId, userRole);
-    return this.prisma.issue.create({
+    const issue = await this.prisma.issue.create({
       data: { ...dto, reporterId },
       select: issueSelect,
     });
+
+    // Notify assignee if one was set at creation time
+    if (issue.assigneeId && issue.assigneeId !== reporterId) {
+      await this.notifications.create({
+        userId: issue.assigneeId,
+        type: 'ISSUE_ASSIGNED',
+        title: 'Issue assigned to you',
+        message: `You were assigned to "${issue.title}" in ${issue.project.name}`,
+        issueId: issue.id,
+        projectId: issue.projectId,
+      });
+    }
+
+    return issue;
   }
 
   async findByProject(projectId: string, userId: string, userRole: string) {
@@ -73,18 +91,34 @@ export class IssuesService {
   }
 
   async update(id: string, dto: UpdateIssueDto, userId: string, userRole: string) {
-    const issue = await this.prisma.issue.findUnique({ where: { id } });
-    if (!issue) throw new NotFoundException(`Issue ${id} not found`);
-    await this.assertProjectAccess(issue.projectId, userId, userRole);
-    if (issue.reporterId !== userId && issue.assigneeId !== userId && userRole !== 'ADMIN') {
+    const before = await this.prisma.issue.findUnique({ where: { id } });
+    if (!before) throw new NotFoundException(`Issue ${id} not found`);
+    await this.assertProjectAccess(before.projectId, userId, userRole);
+    if (before.reporterId !== userId && before.assigneeId !== userId && userRole !== 'ADMIN') {
       throw new ForbiddenException('You can only edit issues you reported or are assigned to');
     }
     const { projectId: _p, ...updateData } = dto;
-    return this.prisma.issue.update({
+    const issue = await this.prisma.issue.update({
       where: { id },
       data: updateData,
       select: issueSelect,
     });
+
+    // Notify new assignee only when the assignee actually changed
+    const assigneeChanged =
+      dto.assigneeId !== undefined && dto.assigneeId !== before.assigneeId;
+    if (assigneeChanged && issue.assigneeId && issue.assigneeId !== userId) {
+      await this.notifications.create({
+        userId: issue.assigneeId,
+        type: 'ISSUE_ASSIGNED',
+        title: 'Issue assigned to you',
+        message: `You were assigned to "${issue.title}" in ${issue.project.name}`,
+        issueId: issue.id,
+        projectId: issue.projectId,
+      });
+    }
+
+    return issue;
   }
 
   async remove(id: string, userId: string, userRole: string) {

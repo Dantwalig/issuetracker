@@ -6,6 +6,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateSprintDto, UpdateSprintDto } from './dto/sprint.dto';
 
 const sprintSelect = {
@@ -41,7 +42,10 @@ const issueSelect = {
 
 @Injectable()
 export class SprintsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   // ── Access control ─────────────────────────────────────────────────────────
 
@@ -74,6 +78,15 @@ export class SprintsService {
     if (!sprint) throw new NotFoundException(`Sprint ${sprintId} not found`);
     await this.assertProjectAccess(sprint.projectId, userId, userRole);
     return sprint;
+  }
+
+  /** Fetch all distinct member user-ids for a project */
+  private async getProjectMemberIds(projectId: string): Promise<string[]> {
+    const members = await this.prisma.projectMember.findMany({
+      where: { projectId },
+      select: { userId: true },
+    });
+    return members.map((m) => m.userId);
   }
 
   // ── CRUD ───────────────────────────────────────────────────────────────────
@@ -158,7 +171,6 @@ export class SprintsService {
       );
     }
 
-    // Enforce: only one ACTIVE sprint per project
     const alreadyActive = await this.prisma.sprint.findFirst({
       where: { projectId: sprint.projectId, status: 'ACTIVE' },
     });
@@ -168,11 +180,31 @@ export class SprintsService {
       );
     }
 
-    return this.prisma.sprint.update({
+    // Fetch project name for the notification message
+    const project = await this.prisma.project.findUnique({
+      where: { id: sprint.projectId },
+      select: { name: true },
+    });
+
+    const updated = await this.prisma.sprint.update({
       where: { id: sprintId },
       data: { status: 'ACTIVE' },
       select: sprintSelect,
     });
+
+    // Notify all project members
+    const memberIds = await this.getProjectMemberIds(sprint.projectId);
+    await this.notifications.createMany(
+      memberIds.map((uid) => ({
+        userId: uid,
+        type: 'SPRINT_STARTED' as const,
+        title: `Sprint "${sprint.name}" started`,
+        message: `Sprint "${sprint.name}" is now active in ${project?.name ?? 'your project'}`,
+        projectId: sprint.projectId,
+      })),
+    );
+
+    return updated;
   }
 
   async completeSprint(sprintId: string, userId: string, userRole: string) {
@@ -182,7 +214,6 @@ export class SprintsService {
       throw new BadRequestException('Only an active sprint can be completed');
     }
 
-    // Move unfinished issues back to backlog
     const backlogMax = await this.prisma.issue.aggregate({
       where: { projectId: sprint.projectId, sprintId: null },
       _max: { backlogOrder: true },
@@ -195,17 +226,14 @@ export class SprintsService {
     });
 
     await this.prisma.$transaction([
-      // Complete the sprint
       this.prisma.sprint.update({
         where: { id: sprintId },
         data: { status: 'COMPLETED' },
       }),
-      // Detach all issues from the sprint
       this.prisma.issue.updateMany({
         where: { sprintId },
         data: { sprintId: null, backlogOrder: null },
       }),
-      // Re-assign backlogOrder to the unfinished ones
       ...unfinished.map((issue, i) =>
         this.prisma.issue.update({
           where: { id: issue.id },
@@ -213,6 +241,24 @@ export class SprintsService {
         }),
       ),
     ]);
+
+    // Fetch project name for the notification message
+    const project = await this.prisma.project.findUnique({
+      where: { id: sprint.projectId },
+      select: { name: true },
+    });
+
+    // Notify all project members
+    const memberIds = await this.getProjectMemberIds(sprint.projectId);
+    await this.notifications.createMany(
+      memberIds.map((uid) => ({
+        userId: uid,
+        type: 'SPRINT_COMPLETED' as const,
+        title: `Sprint "${sprint.name}" completed`,
+        message: `Sprint "${sprint.name}" has been completed in ${project?.name ?? 'your project'}. ${unfinished.length} issue(s) returned to backlog.`,
+        projectId: sprint.projectId,
+      })),
+    );
 
     return this.prisma.sprint.findUnique({
       where: { id: sprintId },
@@ -273,7 +319,6 @@ export class SprintsService {
       throw new NotFoundException('Issue not found in this project');
     }
 
-    // Append to backlog end
     const backlogMax = await this.prisma.issue.aggregate({
       where: { projectId, sprintId: null },
       _max: { backlogOrder: true },

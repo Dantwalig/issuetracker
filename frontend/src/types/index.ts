@@ -118,3 +118,37 @@ export interface CreateSprintPayload {
 }
 
 export type UpdateSprintPayload = Partial<CreateSprintPayload>;
+
+export interface Comment {
+  id: string;
+  issueId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+  author: IssueUser;
+}
+
+export interface CreateCommentPayload {
+  body: string;
+}
+
+export type UpdateCommentPayload = CreateCommentPayload;
+
+export type NotificationType =
+  | 'ISSUE_ASSIGNED'
+  | 'COMMENT_ADDED'
+  | 'SPRINT_STARTED'
+  | 'SPRINT_COMPLETED';
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  isRead: boolean;
+  issueId?: string | null;
+  projectId?: string | null;
+  createdAt: string;
+}
