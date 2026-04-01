@@ -46,11 +46,7 @@ export default function ProjectDetailPage() {
 
   const addMemberMutation = useMutation({
     mutationFn: (userId: string) => projectsApi.addMember(id, userId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['project', id] });
-      setShowAddMember(false);
-      setSelectedUserId('');
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['project', id] }); setShowAddMember(false); setSelectedUserId(''); },
   });
 
   const removeMemberMutation = useMutation({
@@ -59,13 +55,8 @@ export default function ProjectDetailPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: { name: string; description?: string; teamId?: string }) =>
-      projectsApi.update(id, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['project', id] });
-      qc.invalidateQueries({ queryKey: ['projects'] });
-      setShowEdit(false);
-    },
+    mutationFn: (data: { name: string; description?: string; teamId?: string }) => projectsApi.update(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['project', id] }); qc.invalidateQueries({ queryKey: ['projects'] }); setShowEdit(false); },
   });
 
   function openEdit() {
@@ -79,14 +70,9 @@ export default function ProjectDetailPage() {
   async function handleEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!editName.trim()) { setEditError('Name is required'); return; }
-    setSaving(true);
-    setEditError('');
+    setSaving(true); setEditError('');
     try {
-      await updateMutation.mutateAsync({
-        name: editName.trim(),
-        description: editDesc.trim() || undefined,
-        teamId: editTeamId || undefined,
-      });
+      await updateMutation.mutateAsync({ name: editName.trim(), description: editDesc.trim() || undefined, teamId: editTeamId || undefined });
     } catch (err: any) {
       setEditError(err?.response?.data?.message ?? 'Failed to update');
     } finally {
@@ -97,27 +83,19 @@ export default function ProjectDetailPage() {
   const memberIds = new Set(project?.members.map((m) => m.user.id));
   const addableUsers = allUsers.filter((u) => !memberIds.has(u.id));
 
-  if (isLoading)
-    return <div className={styles.center}><span className={styles.spinner} /></div>;
-  if (isError || !project)
-    return (
-      <div className={styles.center}>
-        <p>Project not found.</p>
-        <button onClick={() => router.push('/projects')}>← Back</button>
-      </div>
-    );
+  if (isLoading) return <div className={styles.center}><span className={styles.spinner} /></div>;
+  if (isError || !project) return <div className={styles.center}><p>Project not found.</p><button onClick={() => router.push('/projects')}>← Back</button></div>;
 
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
-        <button className={styles.backBtn} onClick={() => router.push('/projects')}>
-          ← All projects
-        </button>
-        {isAdmin && (
-          <div className={styles.topActions}>
-            <button className={styles.editBtn} onClick={openEdit}>Edit</button>
-          </div>
-        )}
+        <button className={styles.backBtn} onClick={() => router.push('/projects')}>← All projects</button>
+        <div className={styles.topActions}>
+          {isAdmin && <button className={styles.editBtn} onClick={openEdit}>Edit</button>}
+          <button className={styles.issuesBtn} onClick={() => router.push(`/projects/${id}/issues`)}>
+            View issues →
+          </button>
+        </div>
       </div>
 
       <div className={styles.card}>
@@ -125,60 +103,37 @@ export default function ProjectDetailPage() {
           <div className={styles.projectIcon}>{project.name[0].toUpperCase()}</div>
           <div>
             <h1 className={styles.projectName}>{project.name}</h1>
-            {project.description && (
-              <p className={styles.projectDesc}>{project.description}</p>
-            )}
+            {project.description && <p className={styles.projectDesc}>{project.description}</p>}
             <div className={styles.projectMeta}>
               {project.team && (
-                <span
-                  className={styles.teamChip}
-                  onClick={() => router.push(`/teams/${project.teamId}`)}
-                  role="button"
-                >
+                <span className={styles.teamChip} onClick={() => router.push(`/teams/${project.teamId}`)} role="button">
                   {project.team.name}
                 </span>
               )}
-              <span className={styles.metaText}>
-                Created {format(new Date(project.createdAt), 'MMM d, yyyy')}
-              </span>
+              <span className={styles.metaText}>Created {format(new Date(project.createdAt), 'MMM d, yyyy')}</span>
             </div>
           </div>
         </div>
 
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>
-              Members ({project.members.length})
-            </h2>
+            <h2 className={styles.sectionTitle}>Members ({project.members.length})</h2>
             {isAdmin && (
-              <button
-                className={styles.addBtn}
-                onClick={() => setShowAddMember(true)}
-              >
-                + Add member
-              </button>
+              <button className={styles.addBtn} onClick={() => setShowAddMember(true)}>+ Add member</button>
             )}
           </div>
           <div className={styles.memberList}>
-            {project.members.length === 0 && (
-              <p className={styles.empty}>No members yet.</p>
-            )}
+            {project.members.length === 0 && <p className={styles.empty}>No members yet.</p>}
             {project.members.map((m) => (
               <div key={m.user.id} className={styles.memberRow}>
-                <div className={styles.memberAvatar}>
-                  {m.user.fullName[0].toUpperCase()}
-                </div>
+                <div className={styles.memberAvatar}>{m.user.fullName[0].toUpperCase()}</div>
                 <div className={styles.memberInfo}>
                   <span className={styles.memberName}>{m.user.fullName}</span>
                   <span className={styles.memberEmail}>{m.user.email}</span>
                 </div>
                 <span className={styles.memberRole}>{m.user.role}</span>
                 {isAdmin && (
-                  <button
-                    className={styles.removeBtn}
-                    onClick={() => removeMemberMutation.mutate(m.user.id)}
-                    disabled={removeMemberMutation.isPending}
-                  >
+                  <button className={styles.removeBtn} onClick={() => removeMemberMutation.mutate(m.user.id)} disabled={removeMemberMutation.isPending}>
                     Remove
                   </button>
                 )}
@@ -192,33 +147,15 @@ export default function ProjectDetailPage() {
         <Modal title="Add member" onClose={() => setShowAddMember(false)}>
           <div className={styles.addForm}>
             <label className={styles.label}>Select user</label>
-            <select
-              className={styles.select}
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-            >
+            <select className={styles.select} value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)}>
               <option value="">— choose a user —</option>
-              {addableUsers.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.fullName} ({u.email})
-                </option>
-              ))}
+              {addableUsers.map((u) => <option key={u.id} value={u.id}>{u.fullName} ({u.email})</option>)}
             </select>
-            {addableUsers.length === 0 && (
-              <p className={styles.empty}>All users are already members.</p>
-            )}
+            {addableUsers.length === 0 && <p className={styles.empty}>All users are already members.</p>}
             <div className={styles.actions}>
-              <button
-                className={styles.cancelBtn}
-                onClick={() => setShowAddMember(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className={styles.submitBtn}
-                disabled={!selectedUserId || addMemberMutation.isPending}
-                onClick={() => addMemberMutation.mutate(selectedUserId)}
-              >
+              <button className={styles.cancelBtn} onClick={() => setShowAddMember(false)}>Cancel</button>
+              <button className={styles.submitBtn} disabled={!selectedUserId || addMemberMutation.isPending}
+                onClick={() => addMemberMutation.mutate(selectedUserId)}>
                 {addMemberMutation.isPending ? 'Adding…' : 'Add member'}
               </button>
             </div>
@@ -231,50 +168,23 @@ export default function ProjectDetailPage() {
           <form className={styles.addForm} onSubmit={handleEdit}>
             <div className={styles.field}>
               <label className={styles.label}>Name</label>
-              <input
-                className={styles.input}
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-              />
+              <input className={styles.input} value={editName} onChange={(e) => setEditName(e.target.value)} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Description</label>
-              <textarea
-                className={styles.textarea}
-                value={editDesc}
-                onChange={(e) => setEditDesc(e.target.value)}
-                rows={3}
-              />
+              <textarea className={styles.textarea} value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={3} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Team (optional)</label>
-              <select
-                className={styles.select}
-                value={editTeamId}
-                onChange={(e) => setEditTeamId(e.target.value)}
-              >
+              <select className={styles.select} value={editTeamId} onChange={(e) => setEditTeamId(e.target.value)}>
                 <option value="">— no team —</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
+                {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
             {editError && <p className={styles.errorMsg}>{editError}</p>}
             <div className={styles.actions}>
-              <button
-                type="button"
-                className={styles.cancelBtn}
-                onClick={() => setShowEdit(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className={styles.submitBtn}
-                disabled={saving}
-              >
-                {saving ? 'Saving…' : 'Save changes'}
-              </button>
+              <button type="button" className={styles.cancelBtn} onClick={() => setShowEdit(false)}>Cancel</button>
+              <button type="submit" className={styles.submitBtn} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
             </div>
           </form>
         </Modal>

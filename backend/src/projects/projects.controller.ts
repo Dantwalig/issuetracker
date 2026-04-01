@@ -38,6 +38,7 @@ export class ProjectsController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() dto: UpdateProjectDto,

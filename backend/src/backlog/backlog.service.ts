@@ -5,9 +5,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ReorderBacklogDto, MoveIssueDto } from './dto/backlog.dto';
 
-const backlogIssueSelect = {
+const issueSelect = {
   id: true,
   title: true,
   description: true,
@@ -48,50 +47,41 @@ export class BacklogService {
     return project;
   }
 
-  /** List all backlog issues (sprintId = null) for a project, ordered by backlogOrder asc */
-  async listBacklog(projectId: string, userId: string, userRole: string) {
+  /** Return all issues with no sprint, ordered by backlogOrder */
+  async list(projectId: string, userId: string, userRole: string) {
     await this.assertProjectAccess(projectId, userId, userRole);
     return this.prisma.issue.findMany({
       where: { projectId, sprintId: null },
-      select: backlogIssueSelect,
-      orderBy: [{ backlogOrder: 'asc' }, { createdAt: 'asc' }],
+      select: issueSelect,
+      orderBy: { backlogOrder: 'asc' },
     });
   }
 
-  /**
-   * Reorder the backlog for a project.
-   * orderedIds must contain exactly the IDs of all current backlog issues.
-   * Issues are assigned backlogOrder = their index in the array.
-   */
+  /** Reorder the backlog by accepting the full ordered list of issue IDs */
   async reorder(
     projectId: string,
-    dto: ReorderBacklogDto,
+    orderedIds: string[],
     userId: string,
     userRole: string,
   ) {
     await this.assertProjectAccess(projectId, userId, userRole);
 
-    // Validate: all supplied IDs must belong to this project's backlog
-    const backlogIssues = await this.prisma.issue.findMany({
+    // Verify all provided IDs are backlog issues belonging to this project
+    const issues = await this.prisma.issue.findMany({
       where: { projectId, sprintId: null },
       select: { id: true },
     });
-    const backlogIds = new Set(backlogIssues.map((i) => i.id));
-    const invalid = dto.orderedIds.filter((id) => !backlogIds.has(id));
-    if (invalid.length > 0) {
-      throw new BadRequestException(
-        `These IDs are not in the backlog: ${invalid.join(', ')}`,
-      );
-    }
-    if (dto.orderedIds.length !== backlogIds.size) {
-      throw new BadRequestException(
-        'orderedIds must include every backlog issue exactly once',
-      );
+    const backlogIdSet = new Set(issues.map((i) => i.id));
+    for (const id of orderedIds) {
+      if (!backlogIdSet.has(id)) {
+        throw new BadRequestException(
+          `Issue ${id} is not a backlog issue in this project`,
+        );
+      }
     }
 
-    // Bulk-update in a transaction
     await this.prisma.$transaction(
-      dto.orderedIds.map((id, index) =>
+      orderedIds.map((id, index) =>
         this.prisma.issue.update({
           where: { id },
           data: { backlogOrder: index },
@@ -99,47 +89,55 @@ export class BacklogService {
       ),
     );
 
-    return this.listBacklog(projectId, userId, userRole);
+    return this.list(projectId, userId, userRole);
   }
 
   /**
-   * Move an issue into or out of the backlog.
-   * sprintId = null  → move to backlog (appended at the end)
-   * sprintId = <id>  → move out of backlog (into a sprint; order cleared)
+   * Move an issue into or out of a sprint.
+   * sprintId = null  → move to backlog
+   * sprintId = <id>  → move into that sprint
    */
   async moveIssue(
     projectId: string,
     issueId: string,
-    dto: MoveIssueDto,
+    sprintId: string | null,
     userId: string,
     userRole: string,
   ) {
     await this.assertProjectAccess(projectId, userId, userRole);
 
     const issue = await this.prisma.issue.findUnique({ where: { id: issueId } });
-    if (!issue) throw new NotFoundException(`Issue ${issueId} not found`);
-    if (issue.projectId !== projectId) {
-      throw new ForbiddenException('Issue does not belong to this project');
+    if (!issue || issue.projectId !== projectId) {
+      throw new NotFoundException('Issue not found in this project');
     }
 
-    if (dto.sprintId === null) {
-      // Moving into backlog — place at the end
-      const maxOrder = await this.prisma.issue.aggregate({
+    if (sprintId === null) {
+      // Moving to backlog: append at end
+      const backlogMax = await this.prisma.issue.aggregate({
         where: { projectId, sprintId: null },
         _max: { backlogOrder: true },
       });
-      const nextOrder = (maxOrder._max.backlogOrder ?? -1) + 1;
+      const nextOrder = (backlogMax._max.backlogOrder ?? -1) + 1;
       return this.prisma.issue.update({
         where: { id: issueId },
         data: { sprintId: null, backlogOrder: nextOrder },
-        select: backlogIssueSelect,
+        select: issueSelect,
       });
     } else {
-      // Moving out of backlog into a sprint
+      // Moving into a sprint: validate sprint exists and is not completed
+      const sprint = await this.prisma.sprint.findUnique({
+        where: { id: sprintId },
+      });
+      if (!sprint || sprint.projectId !== projectId) {
+        throw new NotFoundException('Sprint not found in this project');
+      }
+      if (sprint.status === 'COMPLETED') {
+        throw new BadRequestException('Cannot add issues to a completed sprint');
+      }
       return this.prisma.issue.update({
         where: { id: issueId },
-        data: { sprintId: dto.sprintId, backlogOrder: null },
-        select: backlogIssueSelect,
+        data: { sprintId, backlogOrder: null },
+        select: issueSelect,
       });
     }
   }

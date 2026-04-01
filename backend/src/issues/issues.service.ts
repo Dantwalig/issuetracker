@@ -16,6 +16,8 @@ const issueSelect = {
   assigneeId: true,
   reporterId: true,
   projectId: true,
+  sprintId: true,
+  backlogOrder: true,
   createdAt: true,
   updatedAt: true,
   reporter: {
@@ -74,8 +76,8 @@ export class IssuesService {
     const issue = await this.prisma.issue.findUnique({ where: { id } });
     if (!issue) throw new NotFoundException(`Issue ${id} not found`);
     await this.assertProjectAccess(issue.projectId, userId, userRole);
-    if (issue.reporterId !== userId && userRole !== 'ADMIN') {
-      throw new ForbiddenException('You can only edit issues you reported');
+    if (issue.reporterId !== userId && issue.assigneeId !== userId && userRole !== 'ADMIN') {
+      throw new ForbiddenException('You can only edit issues you reported or are assigned to');
     }
     const { projectId: _p, ...updateData } = dto;
     return this.prisma.issue.update({

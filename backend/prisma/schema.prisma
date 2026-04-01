@@ -30,6 +30,12 @@ enum IssuePriority {
   HIGH
 }
 
+enum SprintStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+}
+
 model User {
   id               String   @id @default(cuid())
   email            String   @unique
@@ -85,6 +91,7 @@ model Project {
   team    Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
   members ProjectMember[]
   issues  Issue[]
+  sprints Sprint[]
 
   @@map("projects")
 }
@@ -101,24 +108,41 @@ model ProjectMember {
   @@map("project_members")
 }
 
+model Sprint {
+  id        String       @id @default(cuid())
+  name      String
+  projectId String
+  startDate DateTime?
+  endDate   DateTime?
+  status    SprintStatus @default(DRAFT)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issues  Issue[]
+
+  @@map("sprints")
+}
+
 model Issue {
-  id            String        @id @default(cuid())
-  title         String
-  description   String?
-  type          IssueType     @default(TASK)
-  status        IssueStatus   @default(TODO)
-  priority      IssuePriority @default(MEDIUM)
-  assigneeId    String?
-  reporterId    String
-  projectId     String
-  sprintId      String?       // null = backlog
-  backlogOrder  Int?          // ordering within the backlog; null when in a sprint
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id           String        @id @default(cuid())
+  title        String
+  description  String?
+  type         IssueType     @default(TASK)
+  status       IssueStatus   @default(TODO)
+  priority     IssuePriority @default(MEDIUM)
+  assigneeId   String?
+  reporterId   String
+  projectId    String
+  sprintId     String?
+  backlogOrder Int?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   reporter User    @relation("Reporter", fields: [reporterId], references: [id])
   assignee User?   @relation("Assignee", fields: [assigneeId], references: [id])
   project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprint   Sprint? @relation(fields: [sprintId], references: [id], onDelete: SetNull)
 
   @@map("issues")
 }

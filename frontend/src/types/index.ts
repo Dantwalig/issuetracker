@@ -2,6 +2,7 @@ export type Role = 'ADMIN' | 'MEMBER';
 export type IssueType = 'TASK' | 'BUG' | 'STORY';
 export type IssueStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 export type IssuePriority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type SprintStatus = 'DRAFT' | 'ACTIVE' | 'COMPLETED';
 
 export interface User {
   id: string;
@@ -46,6 +47,18 @@ export interface Project {
   createdAt: string;
   updatedAt: string;
   members: ProjectMemberEntry[];
+}
+
+export interface Sprint {
+  id: string;
+  name: string;
+  projectId: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  status: SprintStatus;
+  createdAt: string;
+  updatedAt: string;
+  _count: { issues: number };
 }
 
 export interface Issue {
@@ -97,3 +110,11 @@ export interface CreateProjectPayload {
 }
 
 export type UpdateProjectPayload = Partial<CreateProjectPayload>;
+
+export interface CreateSprintPayload {
+  name: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export type UpdateSprintPayload = Partial<CreateSprintPayload>;
