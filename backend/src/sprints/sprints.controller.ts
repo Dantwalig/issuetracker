@@ -126,11 +126,13 @@ export class SprintsController {
   @HttpCode(HttpStatus.OK)
   removeIssue(
     @Param('projectId') projectId: string,
+    @Param('sprintId') sprintId: string,
     @Param('issueId') issueId: string,
     @CurrentUser() user: { id: string; role: string },
   ) {
     return this.sprintsService.removeIssueFromSprint(
       projectId,
+      sprintId,
       issueId,
       user.id,
       user.role,

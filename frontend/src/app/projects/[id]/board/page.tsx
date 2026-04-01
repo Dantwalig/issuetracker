@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { boardApi, BoardColumns } from '@/lib/board-api';
@@ -26,6 +26,17 @@ export default function BoardPage() {
 
   // dragError is shown when a user tries to move a card they don't have permission to update
   const [dragError, setDragError] = useState<string | null>(null);
+  const dragErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-dismiss the error banner after 5 seconds
+  useEffect(() => {
+    if (!dragError) return;
+    if (dragErrorTimerRef.current) clearTimeout(dragErrorTimerRef.current);
+    dragErrorTimerRef.current = setTimeout(() => setDragError(null), 5000);
+    return () => {
+      if (dragErrorTimerRef.current) clearTimeout(dragErrorTimerRef.current);
+    };
+  }, [dragError]);
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -50,16 +61,11 @@ export default function BoardPage() {
       boardApi.updateStatus(projectId, issueId, status),
     onSuccess: (updated) => {
       setDragError(null);
-      // Merge the updated issue back into the server cache
+      // Remove the issue from whichever column it was in, then place it in the
+      // correct column based on the server-confirmed status.
       qc.setQueryData(['board', projectId], (prev: typeof board) => {
         if (!prev) return prev;
         const next: BoardColumns = { TODO: [], IN_PROGRESS: [], DONE: [] };
-        for (const col of COLUMNS) {
-          next[col.key] = prev.columns[col.key]
-            .filter((i) => i.id !== updated.id)
-            .concat(prev.columns[col.key].find((i) => i.id === updated.id) ? [] : []);
-        }
-        // Place updated issue in its new column
         for (const col of COLUMNS) {
           next[col.key] = prev.columns[col.key].filter((i) => i.id !== updated.id);
         }
@@ -85,6 +91,7 @@ export default function BoardPage() {
   const handleDragStart = useCallback(
     (issue: Issue, fromStatus: IssueStatus) => {
       dragIssueRef.current = { issue, fromStatus };
+      setDragError(null);
     },
     [],
   );

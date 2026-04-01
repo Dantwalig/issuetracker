@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { backlogApi } from '@/lib/backlog-api';
@@ -27,8 +27,12 @@ export default function BacklogPage() {
   const [creating, setCreating] = useState(false);
 
   const dragIndexRef = useRef<number | null>(null);
+  const pendingOrderRef = useRef<Issue[] | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [localOrder, setLocalOrder] = useState<Issue[] | null>(null);
+
+  // Keep ref in sync so dragEnd can read the latest order without depending on state
+  useEffect(() => { pendingOrderRef.current = localOrder; }, [localOrder]);
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -89,7 +93,9 @@ export default function BacklogPage() {
   // ── Drag handlers ──────────────────────────────────────────────────────────
   const handleDragStart = useCallback((index: number) => {
     dragIndexRef.current = index;
-  }, []);
+    // Snapshot the current order into the ref so we can mutate it in-flight
+    pendingOrderRef.current = [...(localOrder ?? backlog)];
+  }, [localOrder, backlog]);
 
   const handleDragOver = useCallback(
     (e: React.DragEvent, index: number) => {
@@ -97,20 +103,27 @@ export default function BacklogPage() {
       if (dragIndexRef.current === null || dragIndexRef.current === index) return;
       setDragOverIndex(index);
       const from = dragIndexRef.current;
-      const next = [...issues];
+      // Mutate the ref array directly — no setState, no re-render mid-drag
+      const current = pendingOrderRef.current ?? [...(localOrder ?? backlog)];
+      const next = [...current];
       const [moved] = next.splice(from, 1);
       next.splice(index, 0, moved);
       dragIndexRef.current = index;
-      setLocalOrder(next);
+      pendingOrderRef.current = next;
     },
-    [issues],
+    [localOrder, backlog],
   );
 
   const handleDragEnd = useCallback(() => {
     setDragOverIndex(null);
-    if (localOrder) reorderMutation.mutate(localOrder.map((i) => i.id));
     dragIndexRef.current = null;
-  }, [localOrder, reorderMutation]);
+    const final = pendingOrderRef.current;
+    if (final) {
+      // Commit the final order to state (one re-render) then fire the mutation
+      setLocalOrder(final);
+      reorderMutation.mutate(final.map((i) => i.id));
+    }
+  }, [reorderMutation]);
 
   return (
     <div className={styles.page}>

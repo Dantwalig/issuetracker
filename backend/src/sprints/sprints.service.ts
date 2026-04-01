@@ -319,6 +319,7 @@ export class SprintsService {
 
   async removeIssueFromSprint(
     projectId: string,
+    sprintId: string,
     issueId: string,
     userId: string,
     userRole: string,
@@ -329,6 +330,11 @@ export class SprintsService {
     const issue = await this.prisma.issue.findUnique({ where: { id: issueId } });
     if (!issue || issue.projectId !== projectId) {
       throw new NotFoundException('Issue not found in this project');
+    }
+
+    // Verify the issue actually belongs to the claimed sprint
+    if (issue.sprintId !== sprintId) {
+      throw new NotFoundException('Issue does not belong to this sprint');
     }
 
     const backlogMax = await this.prisma.issue.aggregate({

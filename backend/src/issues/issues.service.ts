@@ -54,8 +54,16 @@ export class IssuesService {
 
   async create(dto: CreateIssueDto, reporterId: string, userRole: string) {
     await this.assertProjectAccess(dto.projectId, reporterId, userRole);
+
+    // Place new issue at the end of the backlog
+    const backlogMax = await this.prisma.issue.aggregate({
+      where: { projectId: dto.projectId, sprintId: null },
+      _max: { backlogOrder: true },
+    });
+    const backlogOrder = (backlogMax._max.backlogOrder ?? -1) + 1;
+
     const issue = await this.prisma.issue.create({
-      data: { ...dto, reporterId },
+      data: { ...dto, reporterId, backlogOrder },
       select: issueSelect,
     });
 
@@ -113,7 +121,7 @@ export class IssuesService {
 
     // Assignees may only change status – reject any other field change
     if (!isAdmin && !isReporter && isAssignee) {
-      const { projectId: _p, status, ...otherFields } = dto;
+      const { status, ...otherFields } = dto;
       const hasOtherChanges = Object.keys(otherFields).some(
         (k) => (otherFields as any)[k] !== undefined,
       );
@@ -122,10 +130,9 @@ export class IssuesService {
       }
     }
 
-    const { projectId: _p, ...updateData } = dto;
     const issue = await this.prisma.issue.update({
       where: { id },
-      data: updateData,
+      data: dto,
       select: issueSelect,
     });
 

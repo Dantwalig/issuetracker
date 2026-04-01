@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then((res) => setUser(res.data))
       .catch(() => {
         localStorage.clear();
+        router.push('/login');
       })
       .finally(() => setLoading(false));
   }, []);

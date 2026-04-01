@@ -55,6 +55,7 @@ export class ProjectsController {
   }
 
   @Post(':id/members')
+  @UseGuards(AdminGuard)
   addMember(
     @Param('id') id: string,
     @Body() dto: AddProjectMemberDto,
@@ -64,6 +65,7 @@ export class ProjectsController {
   }
 
   @Delete(':id/members/:userId')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   removeMember(
     @Param('id') id: string,

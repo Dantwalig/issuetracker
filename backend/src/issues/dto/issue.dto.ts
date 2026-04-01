@@ -6,7 +6,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { IssueType, IssueStatus, IssuePriority } from '@prisma/client';
-import { PartialType } from '@nestjs/mapped-types';
+import { PartialType, OmitType } from '@nestjs/mapped-types';
 
 export class CreateIssueDto {
   @IsString()
@@ -39,4 +39,5 @@ export class CreateIssueDto {
   projectId: string;
 }
 
-export class UpdateIssueDto extends PartialType(CreateIssueDto) {}
+// projectId is set from the route param, never from the request body on updates
+export class UpdateIssueDto extends PartialType(OmitType(CreateIssueDto, ['projectId'] as const)) {}
