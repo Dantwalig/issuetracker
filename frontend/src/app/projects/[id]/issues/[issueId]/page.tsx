@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { issuesApi } from '@/lib/issues-api';
 import { projectsApi } from '@/lib/projects-api';
+import { useAuth } from '@/lib/auth-context';
+import { canEditIssue, canDeleteIssue, canUpdateIssueStatus } from '@/lib/permissions';
 import { StatusBadge, PriorityBadge, TypeBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { IssueForm } from '@/components/issues/IssueForm';
@@ -16,6 +18,8 @@ export default function IssueDetailPage() {
   const { id: projectId, issueId } = useParams<{ id: string; issueId: string }>();
   const router = useRouter();
   const qc = useQueryClient();
+  const { user } = useAuth();
+
   const [showEdit, setShowEdit] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -60,6 +64,11 @@ export default function IssueDetailPage() {
     </div>
   );
 
+  const showEditBtn = canEditIssue(user, issue);
+  const showDeleteBtn = canDeleteIssue(user, issue);
+  // Assignee-only: show a quick status update button (not full edit form)
+  const showStatusOnly = !showEditBtn && canUpdateIssueStatus(user, issue);
+
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
@@ -73,8 +82,15 @@ export default function IssueDetailPage() {
           <span className={styles.breadCurrent}>{issue.id.slice(0, 8)}</span>
         </nav>
         <div className={styles.topActions}>
-          <button className={styles.editBtn} onClick={() => setShowEdit(true)}>Edit</button>
-          <button className={styles.deleteBtn} onClick={() => setConfirmDelete(true)}>Delete</button>
+          {showEditBtn && (
+            <button className={styles.editBtn} onClick={() => setShowEdit(true)}>Edit</button>
+          )}
+          {showStatusOnly && (
+            <button className={styles.editBtn} onClick={() => setShowEdit(true)}>Update status</button>
+          )}
+          {showDeleteBtn && (
+            <button className={styles.deleteBtn} onClick={() => setConfirmDelete(true)}>Delete</button>
+          )}
         </div>
       </div>
 
@@ -117,15 +133,22 @@ export default function IssueDetailPage() {
       </div>
 
       {showEdit && (
-        <Modal title="Edit issue" onClose={() => setShowEdit(false)}>
-          <IssueForm defaultValues={issue} onSubmit={handleUpdate} onCancel={() => setShowEdit(false)} loading={updating} submitLabel="Save changes" />
+        <Modal title={showStatusOnly ? 'Update issue status' : 'Edit issue'} onClose={() => setShowEdit(false)}>
+          <IssueForm
+            defaultValues={issue}
+            onSubmit={handleUpdate}
+            onCancel={() => setShowEdit(false)}
+            loading={updating}
+            submitLabel="Save changes"
+            statusOnly={showStatusOnly}
+          />
         </Modal>
       )}
 
       {confirmDelete && (
         <Modal title="Delete issue" onClose={() => setConfirmDelete(false)} width={420}>
           <div className={styles.confirmBody}>
-            <p>Delete <strong>"{issue.title}"</strong>? This cannot be undone.</p>
+            <p>Delete <strong>&quot;{issue.title}&quot;</strong>? This cannot be undone.</p>
             <div className={styles.confirmActions}>
               <button className={styles.cancelConfirm} onClick={() => setConfirmDelete(false)}>Cancel</button>
               <button className={styles.confirmDelete} onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>

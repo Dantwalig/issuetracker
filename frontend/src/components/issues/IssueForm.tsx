@@ -19,9 +19,11 @@ interface Props {
   onCancel: () => void;
   loading: boolean;
   submitLabel?: string;
+  /** When true, only the Status field is rendered (for assignee-only updates) */
+  statusOnly?: boolean;
 }
 
-export function IssueForm({ defaultValues, onSubmit, onCancel, loading, submitLabel = 'Create issue' }: Props) {
+export function IssueForm({ defaultValues, onSubmit, onCancel, loading, submitLabel = 'Create issue', statusOnly = false }: Props) {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<IssueFormData>({
     defaultValues: {
       title: defaultValues?.title ?? '',
@@ -43,6 +45,27 @@ export function IssueForm({ defaultValues, onSubmit, onCancel, loading, submitLa
       });
     }
   }, [defaultValues, reset]);
+
+  if (statusOnly) {
+    return (
+      <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+        <div className={styles.field}>
+          <label className={styles.label}>Status</label>
+          <select className={styles.select} {...register('status')}>
+            {(['TODO', 'IN_PROGRESS', 'DONE'] as IssueStatus[]).map((s) => (
+              <option key={s} value={s}>{s === 'IN_PROGRESS' ? 'In Progress' : s.charAt(0) + s.slice(1).toLowerCase()}</option>
+            ))}
+          </select>
+        </div>
+        <div className={styles.actions}>
+          <button type="button" className={styles.cancelBtn} onClick={onCancel} disabled={loading}>Cancel</button>
+          <button type="submit" className={styles.submitBtn} disabled={loading}>
+            {loading ? 'Saving…' : submitLabel}
+          </button>
+        </div>
+      </form>
+    );
+  }
 
   return (
     <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>

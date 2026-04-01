@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { sprintsApi } from '@/lib/sprints-api';
 import { projectsApi } from '@/lib/projects-api';
+import { useAuth } from '@/lib/auth-context';
+import { canManageSprints } from '@/lib/permissions';
 import { Issue, Sprint } from '@/types';
 import { StatusBadge, PriorityBadge, TypeBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -18,6 +20,8 @@ export default function SprintDetailPage() {
   }>();
   const router = useRouter();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isManager = canManageSprints(user);
 
   const [showEdit, setShowEdit] = useState(false);
   const [editName, setEditName] = useState('');
@@ -171,15 +175,15 @@ export default function SprintDetailPage() {
           <span className={styles.breadCurrent}>{sprint.name}</span>
         </nav>
         <div className={styles.topActions}>
-          {!isCompleted && (
+          {isManager && !isCompleted && (
             <button className={styles.editBtn} onClick={openEdit}>Edit</button>
           )}
-          {sprint.status === 'DRAFT' && (
+          {isManager && sprint.status === 'DRAFT' && (
             <button className={styles.startBtn} onClick={handleStart} disabled={startMutation.isPending}>
               {startMutation.isPending ? 'Starting…' : 'Start sprint'}
             </button>
           )}
-          {sprint.status === 'ACTIVE' && (
+          {isManager && sprint.status === 'ACTIVE' && (
             <button className={styles.completeBtn} onClick={handleComplete} disabled={completeMutation.isPending}>
               {completeMutation.isPending ? 'Completing…' : 'Complete sprint'}
             </button>
@@ -207,7 +211,7 @@ export default function SprintDetailPage() {
             )}
           </div>
         </div>
-        {!isCompleted && (
+        {isManager && !isCompleted && (
           <button
             className={styles.planBtn}
             onClick={() => setShowPlanning(!showPlanning)}
@@ -218,7 +222,7 @@ export default function SprintDetailPage() {
       </div>
 
       {/* Planning panel: backlog issues to add */}
-      {showPlanning && (
+      {isManager && showPlanning && (
         <div className={styles.planningPanel}>
           <div className={styles.planningHeader}>
             <h2 className={styles.panelTitle}>Backlog — click an issue to add it to this sprint</h2>
@@ -278,7 +282,7 @@ export default function SprintDetailPage() {
                 issue={issue}
                 onClick={() => router.push(`/projects/${projectId}/issues/${issue.id}`)}
                 action={
-                  !isCompleted ? (
+                  isManager && !isCompleted ? (
                     <button
                       className={styles.removeIssueBtn}
                       disabled={removeIssueMutation.isPending}

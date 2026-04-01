@@ -7,6 +7,8 @@ import { backlogApi } from '@/lib/backlog-api';
 import { sprintsApi } from '@/lib/sprints-api';
 import { issuesApi } from '@/lib/issues-api';
 import { projectsApi } from '@/lib/projects-api';
+import { useAuth } from '@/lib/auth-context';
+import { canManageSprints } from '@/lib/permissions';
 import { Issue } from '@/types';
 import { StatusBadge, PriorityBadge, TypeBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -18,6 +20,8 @@ export default function BacklogPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isManager = canManageSprints(user);
 
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -181,6 +185,7 @@ export default function BacklogPage() {
               onAddToSprint={() =>
                 activeSprint && addToSprintMutation.mutate({ issueId: issue.id, sprintId: activeSprint.id })
               }
+              isManager={isManager}
             />
           ))}
         </div>
@@ -211,11 +216,12 @@ interface RowProps {
   onDragEnd: () => void;
   onClick: () => void;
   onAddToSprint: () => void;
+  isManager: boolean;
 }
 
 function BacklogRow({
   issue, index, isDragOver, activeSprint, addingToSprint,
-  onDragStart, onDragOver, onDragEnd, onClick, onAddToSprint,
+  onDragStart, onDragOver, onDragEnd, onClick, onAddToSprint, isManager,
 }: RowProps) {
   return (
     <div
@@ -237,7 +243,7 @@ function BacklogRow({
       <span><StatusBadge status={issue.status} /></span>
       <span className={styles.meta}>{issue.reporter.fullName}</span>
       <span className={styles.date}>{formatDistanceToNow(new Date(issue.updatedAt), { addSuffix: true })}</span>
-      {activeSprint && (
+      {activeSprint && isManager && (
         <span onClick={(e) => e.stopPropagation()}>
           <button
             className={styles.sprintBtn}
@@ -249,6 +255,7 @@ function BacklogRow({
           </button>
         </span>
       )}
+      {activeSprint && !isManager && <span />}
     </div>
   );
 }

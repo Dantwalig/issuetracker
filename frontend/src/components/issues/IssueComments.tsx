@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { commentsApi } from '@/lib/comments-api';
 import { useAuth } from '@/lib/auth-context';
+import { canEditComment, canDeleteComment } from '@/lib/permissions';
 import { format } from 'date-fns';
 import styles from './IssueComments.module.css';
 
@@ -91,7 +92,8 @@ export function IssueComments({ issueId }: Props) {
             <p className={styles.empty}>No comments yet. Be the first to comment.</p>
           )}
           {comments.map((comment) => {
-            const isOwn = user?.id === comment.authorId;
+            const canEdit = canEditComment(user, comment);
+            const canDelete = canDeleteComment(user, comment);
             const isEditing = editingId === comment.id;
             const initials = comment.author.fullName
               .split(' ')
@@ -139,21 +141,25 @@ export function IssueComments({ issueId }: Props) {
                   ) : (
                     <>
                       <p className={styles.text}>{comment.body}</p>
-                      {isOwn && (
+                      {(canEdit || canDelete) && (
                         <div className={styles.actions}>
-                          <button
-                            className={styles.actionBtn}
-                            onClick={() => startEdit(comment.id, comment.body)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                            onClick={() => deleteMutation.mutate(comment.id)}
-                            disabled={deleteMutation.isPending}
-                          >
-                            Delete
-                          </button>
+                          {canEdit && (
+                            <button
+                              className={styles.actionBtn}
+                              onClick={() => startEdit(comment.id, comment.body)}
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                              onClick={() => deleteMutation.mutate(comment.id)}
+                              disabled={deleteMutation.isPending}
+                            >
+                              Delete
+                            </button>
+                          )}
                         </div>
                       )}
                     </>

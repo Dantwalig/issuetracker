@@ -67,6 +67,16 @@ export class SprintsService {
     return project;
   }
 
+  /**
+   * Sprint lifecycle actions (create, delete, start, complete, edit) are
+   * restricted to admins only. Read operations are open to all project members.
+   */
+  private assertAdminOrForbid(userRole: string, action: string) {
+    if (userRole !== 'ADMIN') {
+      throw new ForbiddenException(`Only admins can ${action}`);
+    }
+  }
+
   private async getSprintAndAssertAccess(
     sprintId: string,
     userId: string,
@@ -98,6 +108,7 @@ export class SprintsService {
     userRole: string,
   ) {
     await this.assertProjectAccess(projectId, userId, userRole);
+    this.assertAdminOrForbid(userRole, 'create sprints');
     return this.prisma.sprint.create({
       data: {
         name: dto.name,
@@ -134,6 +145,7 @@ export class SprintsService {
     userRole: string,
   ) {
     const sprint = await this.getSprintAndAssertAccess(sprintId, userId, userRole);
+    this.assertAdminOrForbid(userRole, 'edit sprints');
     if (sprint.status === 'COMPLETED') {
       throw new BadRequestException('Cannot edit a completed sprint');
     }
@@ -154,6 +166,7 @@ export class SprintsService {
 
   async deleteSprint(sprintId: string, userId: string, userRole: string) {
     const sprint = await this.getSprintAndAssertAccess(sprintId, userId, userRole);
+    this.assertAdminOrForbid(userRole, 'delete sprints');
     if (sprint.status !== 'DRAFT') {
       throw new BadRequestException('Only draft sprints can be deleted');
     }
@@ -164,6 +177,7 @@ export class SprintsService {
 
   async startSprint(sprintId: string, userId: string, userRole: string) {
     const sprint = await this.getSprintAndAssertAccess(sprintId, userId, userRole);
+    this.assertAdminOrForbid(userRole, 'start sprints');
 
     if (sprint.status !== 'DRAFT') {
       throw new BadRequestException(
@@ -180,7 +194,6 @@ export class SprintsService {
       );
     }
 
-    // Fetch project name for the notification message
     const project = await this.prisma.project.findUnique({
       where: { id: sprint.projectId },
       select: { name: true },
@@ -192,7 +205,6 @@ export class SprintsService {
       select: sprintSelect,
     });
 
-    // Notify all project members
     const memberIds = await this.getProjectMemberIds(sprint.projectId);
     await this.notifications.createMany(
       memberIds.map((uid) => ({
@@ -209,6 +221,7 @@ export class SprintsService {
 
   async completeSprint(sprintId: string, userId: string, userRole: string) {
     const sprint = await this.getSprintAndAssertAccess(sprintId, userId, userRole);
+    this.assertAdminOrForbid(userRole, 'complete sprints');
 
     if (sprint.status !== 'ACTIVE') {
       throw new BadRequestException('Only an active sprint can be completed');
@@ -242,13 +255,11 @@ export class SprintsService {
       ),
     ]);
 
-    // Fetch project name for the notification message
     const project = await this.prisma.project.findUnique({
       where: { id: sprint.projectId },
       select: { name: true },
     });
 
-    // Notify all project members
     const memberIds = await this.getProjectMemberIds(sprint.projectId);
     await this.notifications.createMany(
       memberIds.map((uid) => ({
@@ -285,6 +296,7 @@ export class SprintsService {
     userRole: string,
   ) {
     await this.assertProjectAccess(projectId, userId, userRole);
+    this.assertAdminOrForbid(userRole, 'add issues to sprints');
 
     const sprint = await this.prisma.sprint.findUnique({ where: { id: sprintId } });
     if (!sprint || sprint.projectId !== projectId) {
@@ -313,6 +325,7 @@ export class SprintsService {
     userRole: string,
   ) {
     await this.assertProjectAccess(projectId, userId, userRole);
+    this.assertAdminOrForbid(userRole, 'remove issues from sprints');
 
     const issue = await this.prisma.issue.findUnique({ where: { id: issueId } });
     if (!issue || issue.projectId !== projectId) {

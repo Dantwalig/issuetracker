@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { sprintsApi } from '@/lib/sprints-api';
 import { projectsApi } from '@/lib/projects-api';
+import { useAuth } from '@/lib/auth-context';
+import { canManageSprints } from '@/lib/permissions';
 import { Sprint, SprintStatus } from '@/types';
 import { Modal } from '@/components/ui/Modal';
 import { format } from 'date-fns';
@@ -20,6 +22,8 @@ export default function SprintsPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isManager = canManageSprints(user);
 
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
@@ -120,9 +124,11 @@ export default function SprintsPage() {
           <span className={styles.sep}>/</span>
           <span className={styles.breadCurrent}>Sprints</span>
         </div>
-        <button className={styles.createBtn} onClick={() => setShowCreate(true)}>
-          + New sprint
-        </button>
+        {isManager && (
+          <button className={styles.createBtn} onClick={() => setShowCreate(true)}>
+            + New sprint
+          </button>
+        )}
       </div>
 
       <div className={styles.titleRow}>
@@ -145,9 +151,11 @@ export default function SprintsPage() {
           <div className={styles.emptyIcon}><SprintIcon /></div>
           <p className={styles.emptyTitle}>No sprints yet</p>
           <p className={styles.emptyHint}>Create a sprint and move issues from the backlog into it.</p>
-          <button className={styles.createBtn} onClick={() => setShowCreate(true)}>
-            + New sprint
-          </button>
+          {isManager && (
+            <button className={styles.createBtn} onClick={() => setShowCreate(true)}>
+              + New sprint
+            </button>
+          )}
         </div>
       )}
 
@@ -163,6 +171,7 @@ export default function SprintsPage() {
               startPending={startMutation.isPending}
               completePending={completeMutation.isPending}
               onOpen={(s) => router.push(`/projects/${projectId}/sprints/${s.id}`)}
+              isManager={isManager}
             />
           )}
           {draft.length > 0 && (
@@ -175,6 +184,7 @@ export default function SprintsPage() {
               startPending={startMutation.isPending}
               completePending={completeMutation.isPending}
               onOpen={(s) => router.push(`/projects/${projectId}/sprints/${s.id}`)}
+              isManager={isManager}
             />
           )}
           {completed.length > 0 && (
@@ -187,6 +197,7 @@ export default function SprintsPage() {
               startPending={startMutation.isPending}
               completePending={completeMutation.isPending}
               onOpen={(s) => router.push(`/projects/${projectId}/sprints/${s.id}`)}
+              isManager={isManager}
             />
           )}
         </div>
@@ -252,6 +263,7 @@ interface SectionProps {
   startPending: boolean;
   completePending: boolean;
   onOpen: (s: Sprint) => void;
+  isManager: boolean;
 }
 
 function SprintSection({
@@ -262,6 +274,7 @@ function SprintSection({
   startPending,
   completePending,
   onOpen,
+  isManager,
 }: SectionProps) {
   return (
     <div className={styles.section}>
@@ -276,6 +289,7 @@ function SprintSection({
             startPending={startPending}
             completePending={completePending}
             onOpen={onOpen}
+            isManager={isManager}
           />
         ))}
       </div>
@@ -292,9 +306,10 @@ interface CardProps {
   startPending: boolean;
   completePending: boolean;
   onOpen: (s: Sprint) => void;
+  isManager: boolean;
 }
 
-function SprintCard({ sprint, onStart, onComplete, startPending, completePending, onOpen }: CardProps) {
+function SprintCard({ sprint, onStart, onComplete, startPending, completePending, onOpen, isManager }: CardProps) {
   return (
     <div className={`${styles.card} ${styles[`card_${sprint.status.toLowerCase()}`]}`}>
       <div className={styles.cardMain}>
@@ -320,7 +335,7 @@ function SprintCard({ sprint, onStart, onComplete, startPending, completePending
         </div>
 
         <div className={styles.cardActions}>
-          {sprint.status === 'DRAFT' && (
+          {isManager && sprint.status === 'DRAFT' && (
             <button
               className={styles.actionBtn}
               onClick={() => onStart(sprint)}
@@ -329,7 +344,7 @@ function SprintCard({ sprint, onStart, onComplete, startPending, completePending
               Start sprint
             </button>
           )}
-          {sprint.status === 'ACTIVE' && (
+          {isManager && sprint.status === 'ACTIVE' && (
             <button
               className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
               onClick={() => onComplete(sprint)}

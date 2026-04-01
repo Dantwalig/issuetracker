@@ -59,7 +59,6 @@ export class IssuesService {
       select: issueSelect,
     });
 
-    // Notify assignee if one was set at creation time
     if (issue.assigneeId && issue.assigneeId !== reporterId) {
       await this.notifications.create({
         userId: issue.assigneeId,
@@ -90,13 +89,39 @@ export class IssuesService {
     return issue;
   }
 
+  /**
+   * Permission rules:
+   *  - Admin: can update any field on any issue.
+   *  - Reporter: can update any field on issues they reported.
+   *  - Assignee: can update status only on issues assigned to them.
+   *  - Other project members: cannot update issues.
+   *
+   * If an unauthorized user tries to update a non-status field we throw 403.
+   */
   async update(id: string, dto: UpdateIssueDto, userId: string, userRole: string) {
     const before = await this.prisma.issue.findUnique({ where: { id } });
     if (!before) throw new NotFoundException(`Issue ${id} not found`);
     await this.assertProjectAccess(before.projectId, userId, userRole);
-    if (before.reporterId !== userId && before.assigneeId !== userId && userRole !== 'ADMIN') {
+
+    const isAdmin = userRole === 'ADMIN';
+    const isReporter = before.reporterId === userId;
+    const isAssignee = before.assigneeId === userId;
+
+    if (!isAdmin && !isReporter && !isAssignee) {
       throw new ForbiddenException('You can only edit issues you reported or are assigned to');
     }
+
+    // Assignees may only change status – reject any other field change
+    if (!isAdmin && !isReporter && isAssignee) {
+      const { projectId: _p, status, ...otherFields } = dto;
+      const hasOtherChanges = Object.keys(otherFields).some(
+        (k) => (otherFields as any)[k] !== undefined,
+      );
+      if (hasOtherChanges) {
+        throw new ForbiddenException('Assignees can only update the issue status');
+      }
+    }
+
     const { projectId: _p, ...updateData } = dto;
     const issue = await this.prisma.issue.update({
       where: { id },
@@ -104,7 +129,6 @@ export class IssuesService {
       select: issueSelect,
     });
 
-    // Notify new assignee only when the assignee actually changed
     const assigneeChanged =
       dto.assigneeId !== undefined && dto.assigneeId !== before.assigneeId;
     if (assigneeChanged && issue.assigneeId && issue.assigneeId !== userId) {
@@ -121,12 +145,15 @@ export class IssuesService {
     return issue;
   }
 
+  /**
+   * Only the reporter or an admin may delete an issue.
+   */
   async remove(id: string, userId: string, userRole: string) {
     const issue = await this.prisma.issue.findUnique({ where: { id } });
     if (!issue) throw new NotFoundException(`Issue ${id} not found`);
     await this.assertProjectAccess(issue.projectId, userId, userRole);
     if (issue.reporterId !== userId && userRole !== 'ADMIN') {
-      throw new ForbiddenException('You can only delete issues you reported');
+      throw new ForbiddenException('Only the reporter or an admin can delete this issue');
     }
     await this.prisma.issue.delete({ where: { id } });
   }

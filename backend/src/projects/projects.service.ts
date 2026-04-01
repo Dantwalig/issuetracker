@@ -58,7 +58,15 @@ export class ProjectsService {
     return project;
   }
 
+  /**
+   * Only admins may update project settings (name, description, team).
+   * The AdminGuard on the controller already blocks non-admins before this is called,
+   * but we keep the check here for defence-in-depth.
+   */
   async update(id: string, dto: UpdateProjectDto, userId: string, userRole: string) {
+    if (userRole !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can update project settings');
+    }
     await this.findOne(id, userId, userRole);
     if (dto.teamId) {
       const team = await this.prisma.team.findUnique({ where: { id: dto.teamId } });
@@ -73,7 +81,13 @@ export class ProjectsService {
     await this.prisma.project.delete({ where: { id } });
   }
 
+  /**
+   * Only admins may manage project membership.
+   */
   async addMember(projectId: string, userId: string, requesterId: string, requesterRole: string) {
+    if (requesterRole !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can add project members');
+    }
     await this.findOne(projectId, requesterId, requesterRole);
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException(`User ${userId} not found`);
@@ -86,6 +100,9 @@ export class ProjectsService {
   }
 
   async removeMember(projectId: string, userId: string, requesterId: string, requesterRole: string) {
+    if (requesterRole !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can remove project members');
+    }
     await this.findOne(projectId, requesterId, requesterRole);
     const membership = await this.prisma.projectMember.findUnique({
       where: { projectId_userId: { projectId, userId } },

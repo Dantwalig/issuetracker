@@ -126,7 +126,6 @@ export class AuthService {
       data: { refreshTokenHash: hash },
     });
   }
-}
 
   async listUsers() {
     return this.prisma.user.findMany({
@@ -135,3 +134,4 @@ export class AuthService {
       orderBy: { fullName: 'asc' },
     });
   }
+}
