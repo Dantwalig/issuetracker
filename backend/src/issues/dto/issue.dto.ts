@@ -35,8 +35,10 @@ export class CreateIssueDto {
   @IsString()
   assigneeId?: string;
 
+  // Injected from the route param in the controller — not expected in the request body
+  @IsOptional()
   @IsString()
-  projectId: string;
+  projectId?: string;
 }
 
 // projectId is set from the route param, never from the request body on updates
