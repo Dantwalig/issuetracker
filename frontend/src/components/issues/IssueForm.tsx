@@ -2,9 +2,7 @@
 
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { useQuery } from '@tanstack/react-query';
-import { usersApi } from '@/lib/users-api';
-import { Issue, IssueType, IssueStatus, IssuePriority } from '@/types';
+import { IssueUser, Issue, IssueType, IssueStatus, IssuePriority } from '@/types';
 import styles from './IssueForm.module.css';
 
 type IssueFormData = {
@@ -18,6 +16,8 @@ type IssueFormData = {
 
 interface Props {
   defaultValues?: Partial<Issue>;
+  /** Project members to populate the assignee dropdown — scoped to this project only */
+  projectMembers?: IssueUser[];
   onSubmit: (data: IssueFormData) => Promise<void>;
   onCancel: () => void;
   loading: boolean;
@@ -28,6 +28,7 @@ interface Props {
 
 export function IssueForm({
   defaultValues,
+  projectMembers = [],
   onSubmit,
   onCancel,
   loading,
@@ -43,14 +44,6 @@ export function IssueForm({
       priority: defaultValues?.priority ?? 'MEDIUM',
       assigneeId: defaultValues?.assigneeId ?? '',
     },
-  });
-
-  // Fetch project members for the assignee dropdown.
-  // Only fetch when the full form is shown (not in statusOnly mode).
-  const { data: users = [] } = useQuery({
-    queryKey: ['users'],
-    queryFn: usersApi.list,
-    enabled: !statusOnly,
   });
 
   useEffect(() => {
@@ -167,7 +160,7 @@ export function IssueForm({
         <label className={styles.label}>Assignee</label>
         <select className={styles.select} {...register('assigneeId')}>
           <option value="">— unassigned —</option>
-          {users.map((u) => (
+          {projectMembers.map((u) => (
             <option key={u.id} value={u.id}>
               {u.fullName} ({u.email})
             </option>

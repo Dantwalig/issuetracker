@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { issuesApi } from '@/lib/issues-api';
 import { projectsApi } from '@/lib/projects-api';
-import { Issue, IssueStatus } from '@/types';
+import { Issue, IssueStatus, IssueUser } from '@/types';
 import { StatusBadge, PriorityBadge, TypeBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { IssueForm } from '@/components/issues/IssueForm';
@@ -44,6 +44,9 @@ export default function ProjectIssuesPage() {
   });
 
   const filtered = statusFilter === 'ALL' ? issues : issues.filter((i) => i.status === statusFilter);
+
+  // Derive project members as IssueUser[] for the assignee dropdown
+  const projectMembers: IssueUser[] = (project?.members ?? []).map((m) => m.user);
 
   async function handleCreate(data: any) {
     setCreating(true);
@@ -113,7 +116,13 @@ export default function ProjectIssuesPage() {
 
       {showCreate && (
         <Modal title="New issue" onClose={() => setShowCreate(false)}>
-          <IssueForm onSubmit={handleCreate} onCancel={() => setShowCreate(false)} loading={creating} submitLabel="Create issue" />
+          <IssueForm
+            projectMembers={projectMembers}
+            onSubmit={handleCreate}
+            onCancel={() => setShowCreate(false)}
+            loading={creating}
+            submitLabel="Create issue"
+          />
         </Modal>
       )}
     </div>

@@ -11,6 +11,7 @@ import { StatusBadge, PriorityBadge, TypeBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { IssueForm } from '@/components/issues/IssueForm';
 import { IssueComments } from '@/components/issues/IssueComments';
+import { IssueUser } from '@/types';
 import { format } from 'date-fns';
 import styles from './page.module.css';
 
@@ -66,8 +67,10 @@ export default function IssueDetailPage() {
 
   const showEditBtn = canEditIssue(user, issue);
   const showDeleteBtn = canDeleteIssue(user, issue);
-  // Assignee-only: show a quick status update button (not full edit form)
   const showStatusOnly = !showEditBtn && canUpdateIssueStatus(user, issue);
+
+  // Scope assignee dropdown to project members only
+  const projectMembers: IssueUser[] = (project?.members ?? []).map((m) => m.user);
 
   return (
     <div className={styles.page}>
@@ -136,6 +139,7 @@ export default function IssueDetailPage() {
         <Modal title={showStatusOnly ? 'Update issue status' : 'Edit issue'} onClose={() => setShowEdit(false)}>
           <IssueForm
             defaultValues={issue}
+            projectMembers={projectMembers}
             onSubmit={handleUpdate}
             onCancel={() => setShowEdit(false)}
             loading={updating}
