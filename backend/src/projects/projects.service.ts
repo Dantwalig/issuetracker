@@ -30,11 +30,28 @@ export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateProjectDto) {
+    let teamMemberIds: string[] = [];
+
     if (dto.teamId) {
-      const team = await this.prisma.team.findUnique({ where: { id: dto.teamId } });
+      const team = await this.prisma.team.findUnique({
+        where: { id: dto.teamId },
+        include: { members: { select: { userId: true } } },
+      });
       if (!team) throw new NotFoundException(`Team ${dto.teamId} not found`);
+      teamMemberIds = team.members.map((m) => m.userId);
     }
-    return this.prisma.project.create({ data: dto, select: projectSelect });
+
+    return this.prisma.project.create({
+      data: {
+        name: dto.name,
+        description: dto.description,
+        teamId: dto.teamId,
+        members: teamMemberIds.length
+          ? { create: teamMemberIds.map((userId) => ({ userId })) }
+          : undefined,
+      },
+      select: projectSelect,
+    });
   }
 
   async findAll(userId: string, userRole: string) {
@@ -58,20 +75,41 @@ export class ProjectsService {
     return project;
   }
 
-  /**
-   * Only admins may update project settings (name, description, team).
-   * The AdminGuard on the controller already blocks non-admins before this is called,
-   * but we keep the check here for defence-in-depth.
-   */
   async update(id: string, dto: UpdateProjectDto, userId: string, userRole: string) {
     if (userRole !== 'ADMIN') {
       throw new ForbiddenException('Only admins can update project settings');
     }
-    await this.findOne(id, userId, userRole);
-    if (dto.teamId) {
-      const team = await this.prisma.team.findUnique({ where: { id: dto.teamId } });
+
+    const existing = await this.findOne(id, userId, userRole);
+
+    if (dto.teamId && dto.teamId !== existing.teamId) {
+      // Team changed — fetch new team members and sync ProjectMember rows
+      const team = await this.prisma.team.findUnique({
+        where: { id: dto.teamId },
+        include: { members: { select: { userId: true } } },
+      });
       if (!team) throw new NotFoundException(`Team ${dto.teamId} not found`);
+
+      const newMemberIds = team.members.map((m) => m.userId);
+
+      // Upsert each team member into the project (keeps any existing extra members too)
+      await Promise.all(
+        newMemberIds.map((uid) =>
+          this.prisma.projectMember.upsert({
+            where: { projectId_userId: { projectId: id, userId: uid } },
+            update: {},
+            create: { projectId: id, userId: uid },
+          }),
+        ),
+      );
+    } else if (dto.teamId === '') {
+      // Team explicitly cleared — leave existing project members untouched
     }
+
+    if (dto.teamId !== undefined && dto.teamId === '') {
+      dto = { ...dto, teamId: undefined };
+    }
+
     return this.prisma.project.update({ where: { id }, data: dto, select: projectSelect });
   }
 
@@ -81,9 +119,6 @@ export class ProjectsService {
     await this.prisma.project.delete({ where: { id } });
   }
 
-  /**
-   * Only admins may manage project membership.
-   */
   async addMember(projectId: string, userId: string, requesterId: string, requesterRole: string) {
     if (requesterRole !== 'ADMIN') {
       throw new ForbiddenException('Only admins can add project members');
