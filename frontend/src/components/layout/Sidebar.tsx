@@ -33,6 +33,15 @@ export function Sidebar() {
             <ProjectsIcon />
             Projects
           </Link>
+          {user?.role === 'ADMIN' && (
+            <Link
+              href="/admin/users"
+              className={`${styles.navItem} ${pathname.startsWith('/admin') ? styles.active : ''}`}
+            >
+              <UsersIcon />
+              Users
+            </Link>
+          )}
         </nav>
       </div>
 
@@ -73,6 +82,17 @@ function ProjectsIcon() {
       <rect x="9.5" y="1.5" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5"/>
       <rect x="1.5" y="9.5" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5"/>
       <rect x="9.5" y="9.5" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+    </svg>
+  );
+}
+
+function UsersIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M2 13c0-2.5 2.5-4 6-4s6 1.5 6 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M12.5 2.5a2.5 2.5 0 0 1 0 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M14.5 13c0-1.5-1-2.5-2.5-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   );
 }
