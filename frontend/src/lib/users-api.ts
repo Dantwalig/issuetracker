@@ -3,7 +3,6 @@ import { User, Role } from '@/types';
 
 export interface CreateUserPayload {
   email: string;
-  password: string;
   fullName: string;
   role?: Role;
 }

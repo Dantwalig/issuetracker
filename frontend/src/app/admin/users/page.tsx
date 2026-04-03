@@ -9,7 +9,6 @@ import styles from './page.module.css';
 const EMPTY_FORM = {
   fullName: '',
   email: '',
-  password: '',
   role: 'MEMBER' as 'ADMIN' | 'MEMBER',
 };
 
@@ -28,7 +27,9 @@ export default function AdminUsersPage() {
     mutationFn: usersApi.create,
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      setSuccess(`User "${created.fullName}" created successfully.`);
+      setSuccess(
+        `User "${created.fullName}" created. A welcome email with their temporary password has been sent to ${created.email}.`,
+      );
       setFormError('');
       setForm(EMPTY_FORM);
     },
@@ -36,12 +37,16 @@ export default function AdminUsersPage() {
       const msg =
         (err as { response?: { data?: { message?: string | string[] } } })
           ?.response?.data?.message;
-      setFormError(Array.isArray(msg) ? msg.join(', ') : (msg ?? 'Failed to create user.'));
+      setFormError(
+        Array.isArray(msg) ? msg.join(', ') : (msg ?? 'Failed to create user.'),
+      );
       setSuccess('');
     },
   });
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+  function handleChange(
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setSuccess('');
     setFormError('');
@@ -57,7 +62,8 @@ export default function AdminUsersPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>User Management</h1>
         <p className={styles.subtitle}>
-          Create accounts for teammates. Users cannot register themselves.
+          Create accounts for teammates. A temporary password will be emailed to
+          each new user — they must change it on first login.
         </p>
       </div>
 
@@ -67,7 +73,9 @@ export default function AdminUsersPage() {
         <form onSubmit={handleSubmit}>
           <div className={styles.grid}>
             <div className={styles.field}>
-              <label className={styles.label} htmlFor="fullName">Full name</label>
+              <label className={styles.label} htmlFor="fullName">
+                Full name
+              </label>
               <input
                 id="fullName"
                 name="fullName"
@@ -82,7 +90,9 @@ export default function AdminUsersPage() {
             </div>
 
             <div className={styles.field}>
-              <label className={styles.label} htmlFor="email">Email</label>
+              <label className={styles.label} htmlFor="email">
+                Email
+              </label>
               <input
                 id="email"
                 name="email"
@@ -96,22 +106,9 @@ export default function AdminUsersPage() {
             </div>
 
             <div className={styles.field}>
-              <label className={styles.label} htmlFor="password">Temporary password</label>
-              <input
-                id="password"
-                name="password"
-                className={styles.input}
-                type="password"
-                placeholder="Min. 6 characters"
-                value={form.password}
-                onChange={handleChange}
-                required
-                minLength={6}
-              />
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="role">Role</label>
+              <label className={styles.label} htmlFor="role">
+                Role
+              </label>
               <select
                 id="role"
                 name="role"
@@ -131,7 +128,7 @@ export default function AdminUsersPage() {
               type="submit"
               disabled={mutation.isPending}
             >
-              {mutation.isPending ? 'Creating…' : 'Create user'}
+              {mutation.isPending ? 'Creating…' : 'Create user & send invite'}
             </button>
             {success && <span className={styles.success}>✓ {success}</span>}
             {formError && <span className={styles.error}>{formError}</span>}
@@ -163,7 +160,9 @@ export default function AdminUsersPage() {
                   <td>
                     <span
                       className={`${styles.roleBadge} ${
-                        u.role === 'ADMIN' ? styles.roleAdmin : styles.roleMember
+                        u.role === 'ADMIN'
+                          ? styles.roleAdmin
+                          : styles.roleMember
                       }`}
                     >
                       {u.role}
