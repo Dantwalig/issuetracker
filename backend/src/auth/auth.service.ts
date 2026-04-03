@@ -15,6 +15,8 @@ import {
   RefreshTokenDto,
   CreateUserDto,
   ChangePasswordDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
 } from './dto/auth.dto';
 import { Role } from '@prisma/client';
 
@@ -238,6 +240,68 @@ export class AuthService {
       mustChangePassword: user.mustChangePassword,
       createdAt: user.createdAt,
     };
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    // Always respond with success to prevent email enumeration
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (user && user.isActive) {
+      const token = require('crypto').randomBytes(32).toString('hex');
+      const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordResetToken: token, passwordResetExpiry: expiry },
+      });
+
+      const frontendUrl =
+        this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+      const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+
+      void this.emailService.sendPasswordReset({
+        to: user.email,
+        fullName: user.fullName,
+        resetLink,
+      });
+    }
+
+    return {
+      message:
+        'If that email is registered, you will receive a password reset link shortly.',
+    };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        passwordResetToken: dto.token,
+        passwordResetExpiry: { gt: new Date() },
+        isActive: true,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired password reset link.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpiry: null,
+        mustChangePassword: false,
+        // Invalidate any active refresh tokens too
+        refreshTokenHash: null,
+      },
+    });
+
+    return { message: 'Password reset successfully. You can now sign in.' };
   }
 
   private async generateTokens(userId: string, email: string) {

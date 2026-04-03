@@ -76,7 +76,44 @@ export class EmailService {
     });
   }
 
+  async sendPasswordReset(opts: {
+    to: string;
+    fullName: string;
+    resetLink: string;
+  }): Promise<void> {
+    await this.send({
+      to: opts.to,
+      subject: 'Reset your Trackr password',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
+          <h2 style="color:#111;margin-top:0;">Reset your password</h2>
+          <p style="color:#444;line-height:1.6;">Hi ${opts.fullName},</p>
+          <p style="color:#444;line-height:1.6;">We received a request to reset your Trackr password.
+          Click the button below to choose a new one. This link expires in <strong>1 hour</strong>.</p>
+          <div style="text-align:center;margin:32px 0;">
+            <a href="${opts.resetLink}"
+               style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;
+                      padding:12px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+              Reset password
+            </a>
+          </div>
+          <p style="color:#666;font-size:13px;line-height:1.6;">
+            Or copy and paste this link into your browser:<br/>
+            <a href="${opts.resetLink}" style="color:#6366f1;">${opts.resetLink}</a>
+          </p>
+          <p style="color:#888;font-size:12px;margin-top:32px;">
+            If you didn't request a password reset, you can safely ignore this email.
+            Your password will not change.
+          </p>
+        </div>`,
+    });
+  }
+
   async sendNotification(opts: {
+    to: string;
+    title: string;
+    message: string;
+  }): Promise<void> {
     to: string;
     title: string;
     message: string;

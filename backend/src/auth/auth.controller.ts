@@ -14,6 +14,8 @@ import {
   RefreshTokenDto,
   CreateUserDto,
   ChangePasswordDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
@@ -69,5 +71,17 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   createUser(@Body() dto: CreateUserDto) {
     return this.authService.createUser(dto);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 }
