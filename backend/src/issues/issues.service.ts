@@ -63,7 +63,17 @@ export class IssuesService {
     const backlogOrder = (backlogMax._max.backlogOrder ?? -1) + 1;
 
     const issue = await this.prisma.issue.create({
-      data: { ...dto, reporterId, backlogOrder },
+      data: {
+        title: dto.title,
+        description: dto.description,
+        type: dto.type,
+        status: dto.status,
+        priority: dto.priority,
+        assigneeId: dto.assigneeId,
+        projectId: dto.projectId!,
+        reporterId,
+        backlogOrder,
+      },
       select: issueSelect,
     });
 
@@ -72,7 +82,7 @@ export class IssuesService {
         userId: issue.assigneeId,
         type: 'ISSUE_ASSIGNED',
         title: 'Issue assigned to you',
-        message: `You were assigned to "${issue.title}" in ${issue.project.name}`,
+        message: `You were assigned to "${issue.title}" in ${issue.project?.name ?? 'a project'}`,
         issueId: issue.id,
         projectId: issue.projectId,
       });
@@ -143,7 +153,7 @@ export class IssuesService {
         userId: issue.assigneeId,
         type: 'ISSUE_ASSIGNED',
         title: 'Issue assigned to you',
-        message: `You were assigned to "${issue.title}" in ${issue.project.name}`,
+        message: `You were assigned to "${issue.title}" in ${issue.project?.name ?? 'a project'}`,
         issueId: issue.id,
         projectId: issue.projectId,
       });

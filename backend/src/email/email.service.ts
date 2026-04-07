@@ -114,10 +114,6 @@ export class EmailService {
     title: string;
     message: string;
   }): Promise<void> {
-    to: string;
-    title: string;
-    message: string;
-  }): Promise<void> {
     await this.send({
       to: opts.to,
       subject: opts.title,
