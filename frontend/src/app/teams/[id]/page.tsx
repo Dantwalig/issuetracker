@@ -15,7 +15,7 @@ export default function TeamDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { user: currentUser } = useAuth();
-  const isAdmin = currentUser?.role === 'ADMIN';
+  const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERADMIN';
 
   const [showAddMember, setShowAddMember] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');

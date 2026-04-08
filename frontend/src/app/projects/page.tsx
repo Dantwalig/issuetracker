@@ -15,7 +15,7 @@ export default function ProjectsPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
 
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');

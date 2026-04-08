@@ -351,6 +351,12 @@ export class AuthService {
       throw new ForbiddenException('Only a superadmin can delete another admin');
     }
 
+    // Nullify assignee references before deleting to avoid FK constraint errors
+    await this.prisma.issue.updateMany({
+      where: { assigneeId: targetId },
+      data: { assigneeId: null },
+    });
+
     await this.prisma.user.delete({ where: { id: targetId } });
     return { message: 'User permanently deleted' };
   }

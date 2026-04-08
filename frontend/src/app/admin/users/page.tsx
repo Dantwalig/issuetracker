@@ -258,7 +258,7 @@ export default function AdminUsersPage() {
   const { data: superAdminCheck } = useQuery({
     queryKey: ['superadmin-exists'],
     queryFn: usersApi.hasSuperAdmin,
-    enabled: currentUser?.role === 'ADMIN', // only needed if caller is a regular admin
+    enabled: currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERADMIN',
   });
 
   const superAdminExists = superAdminCheck?.exists ?? true; // default true = hide button until confirmed false
