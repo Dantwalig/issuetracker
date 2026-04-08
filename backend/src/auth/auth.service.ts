@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   ConflictException,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -17,6 +18,7 @@ import {
   ChangePasswordDto,
   ForgotPasswordDto,
   ResetPasswordDto,
+  UpdateRoleDto,
 } from './dto/auth.dto';
 import { Role } from '@prisma/client';
 
@@ -152,7 +154,6 @@ export class AuthService {
   async listUsers(callerId: string, callerRole: string) {
     if (callerRole === 'ADMIN') {
       return this.prisma.user.findMany({
-        where: { isActive: true },
         select: {
           id: true,
           email: true,
@@ -240,6 +241,64 @@ export class AuthService {
       mustChangePassword: user.mustChangePassword,
       createdAt: user.createdAt,
     };
+  }
+
+  async updateRole(targetId: string, callerId: string, dto: UpdateRoleDto) {
+    if (targetId === callerId) {
+      throw new ForbiddenException('You cannot change your own role');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: targetId } });
+    if (!user || !user.isActive) throw new NotFoundException('User not found');
+
+    const updated = await this.prisma.user.update({
+      where: { id: targetId },
+      data: { role: dto.role },
+      select: { id: true, email: true, fullName: true, role: true, isActive: true, createdAt: true },
+    });
+    return updated;
+  }
+
+  async deactivateUser(targetId: string, callerId: string) {
+    if (targetId === callerId) {
+      throw new ForbiddenException('You cannot deactivate your own account');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: targetId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.isActive) throw new BadRequestException('User is already deactivated');
+
+    const updated = await this.prisma.user.update({
+      where: { id: targetId },
+      data: { isActive: false, refreshTokenHash: null },
+      select: { id: true, email: true, fullName: true, role: true, isActive: true, createdAt: true },
+    });
+    return updated;
+  }
+
+  async reactivateUser(targetId: string, callerId: string) {
+    if (targetId === callerId) {
+      throw new ForbiddenException('You cannot reactivate your own account');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: targetId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.isActive) throw new BadRequestException('User is already active');
+
+    const updated = await this.prisma.user.update({
+      where: { id: targetId },
+      data: { isActive: true },
+      select: { id: true, email: true, fullName: true, role: true, isActive: true, createdAt: true },
+    });
+    return updated;
+  }
+
+  async deleteUser(targetId: string, callerId: string) {
+    if (targetId === callerId) {
+      throw new ForbiddenException('You cannot delete your own account');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: targetId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    await this.prisma.user.delete({ where: { id: targetId } });
+    return { message: 'User permanently deleted' };
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {

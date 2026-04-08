@@ -173,3 +173,271 @@
   color: var(--text-3);
   font-size: 14px;
 }
+
+/* ── Table section headers ── */
+.tableSection {
+  margin-bottom: 32px;
+}
+
+.tableTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  background: var(--bg-3, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+/* ── Manage button ── */
+.btnManage {
+  height: 28px;
+  padding: 0 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.btnManage:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Self row highlight ── */
+.selfRow td {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+
+.youTag {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+/* ── Inactive row ── */
+.inactiveRow td {
+  opacity: 0.5;
+}
+
+/* ── Modal overlay ── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+}
+
+.modal {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modalName {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0 0 2px;
+}
+
+.modalEmail {
+  font-size: 13px;
+  color: var(--text-3);
+  margin: 0;
+}
+
+.modalBody {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.selfNote {
+  font-size: 13px;
+  color: var(--text-3);
+  background: color-mix(in srgb, var(--text-3) 8%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionLabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-3);
+  margin: 0;
+}
+
+.roleRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dotActive { background: #22c55e; }
+.dotInactive { background: var(--text-3); }
+
+.statusText {
+  font-size: 14px;
+  color: var(--text-1);
+  flex: 1;
+}
+
+.confirmBox {
+  background: color-mix(in srgb, #ef4444 8%, transparent);
+  border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.confirmText {
+  font-size: 13px;
+  color: var(--text-1);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 8px;
+}
+
+.modalFooter {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ── Extra buttons ── */
+.btnWarn {
+  height: 32px;
+  padding: 0 14px;
+  background: transparent;
+  border: 1px solid #f59e0b;
+  border-radius: var(--radius);
+  color: #f59e0b;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btnWarn:hover:not(:disabled) {
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+}
+
+.btnWarn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btnSuccess {
+  height: 32px;
+  padding: 0 14px;
+  background: transparent;
+  border: 1px solid #22c55e;
+  border-radius: var(--radius);
+  color: #22c55e;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btnSuccess:hover:not(:disabled) {
+  background: color-mix(in srgb, #22c55e 12%, transparent);
+}
+
+.btnSuccess:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btnDanger {
+  height: 32px;
+  padding: 0 14px;
+  background: #ef4444;
+  border: none;
+  border-radius: var(--radius);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btnDanger:hover:not(:disabled) { opacity: 0.85; }
+.btnDanger:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btnGhost {
+  height: 32px;
+  padding: 0 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.btnGhost:hover:not(:disabled) { border-color: var(--text-2); }
+.btnGhost:disabled { opacity: 0.5; cursor: not-allowed; }

@@ -44,6 +44,11 @@ export class ChangePasswordDto {
   newPassword: string;
 }
 
+export class UpdateRoleDto {
+  @IsEnum(Role)
+  role: Role;
+}
+
 export class ForgotPasswordDto {
   @IsEmail()
   email: string;
