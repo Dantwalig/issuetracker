@@ -10,13 +10,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  const isPrivileged = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
+
   useEffect(() => {
     if (!loading && !user) router.replace('/login');
-    if (!loading && user && user.role !== 'ADMIN') router.replace('/projects');
-  }, [user, loading, router]);
+    if (!loading && user && !isPrivileged) router.replace('/projects');
+  }, [user, loading, router, isPrivileged]);
 
   if (loading) return <div className={styles.loadingScreen}><span className={styles.spinner} /></div>;
-  if (!user || user.role !== 'ADMIN') return null;
+  if (!user || !isPrivileged) return null;
 
   return (
     <div className={styles.shell}>
