@@ -45,7 +45,7 @@ export class IssuesService {
       include: { members: true },
     });
     if (!project) throw new NotFoundException(`Project ${projectId} not found`);
-    if (userRole !== 'ADMIN') {
+    if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       const isMember = project.members.some((m) => m.userId === userId);
       if (!isMember) throw new ForbiddenException('You are not a member of this project');
     }
@@ -121,7 +121,7 @@ export class IssuesService {
     if (!before) throw new NotFoundException(`Issue ${id} not found`);
     await this.assertProjectAccess(before.projectId, userId, userRole);
 
-    const isAdmin = userRole === 'ADMIN';
+    const isAdmin = userRole === 'ADMIN' || userRole === 'SUPERADMIN';
     const isReporter = before.reporterId === userId;
     const isAssignee = before.assigneeId === userId;
 
@@ -169,7 +169,7 @@ export class IssuesService {
     const issue = await this.prisma.issue.findUnique({ where: { id } });
     if (!issue) throw new NotFoundException(`Issue ${id} not found`);
     await this.assertProjectAccess(issue.projectId, userId, userRole);
-    if (issue.reporterId !== userId && userRole !== 'ADMIN') {
+    if (issue.reporterId !== userId && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       throw new ForbiddenException('Only the reporter or an admin can delete this issue');
     }
     await this.prisma.issue.delete({ where: { id } });

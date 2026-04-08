@@ -32,7 +32,7 @@ export class CommentsService {
       include: { project: { include: { members: true } } },
     });
     if (!issue) throw new NotFoundException(`Issue ${issueId} not found`);
-    if (userRole !== 'ADMIN') {
+    if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       const isMember = issue.project.members.some((m) => m.userId === userId);
       if (!isMember) throw new ForbiddenException('You are not a member of this project');
     }
@@ -95,7 +95,7 @@ export class CommentsService {
     const comment = await this.prisma.comment.findUnique({ where: { id } });
     if (!comment) throw new NotFoundException(`Comment ${id} not found`);
     await this.assertProjectMembership(comment.issueId, userId, userRole);
-    if (comment.authorId !== userId && userRole !== 'ADMIN') {
+    if (comment.authorId !== userId && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       throw new ForbiddenException('You can only delete your own comments');
     }
     await this.prisma.comment.delete({ where: { id } });

@@ -40,7 +40,7 @@ export class BoardService {
       include: { members: true },
     });
     if (!project) throw new NotFoundException(`Project ${projectId} not found`);
-    if (userRole !== 'ADMIN') {
+    if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       const isMember = project.members.some((m) => m.userId === userId);
       if (!isMember)
         throw new ForbiddenException('You are not a member of this project');
@@ -126,7 +126,7 @@ export class BoardService {
     if (
       issue.reporterId !== userId &&
       issue.assigneeId !== userId &&
-      userRole !== 'ADMIN'
+      userRole !== 'ADMIN' && userRole !== 'SUPERADMIN'
     ) {
       throw new ForbiddenException(
         'Only the reporter, assignee, or an admin can update this issue',

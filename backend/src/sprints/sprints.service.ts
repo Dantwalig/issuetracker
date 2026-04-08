@@ -59,7 +59,7 @@ export class SprintsService {
       include: { members: true },
     });
     if (!project) throw new NotFoundException(`Project ${projectId} not found`);
-    if (userRole !== 'ADMIN') {
+    if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       const isMember = project.members.some((m) => m.userId === userId);
       if (!isMember)
         throw new ForbiddenException('You are not a member of this project');
@@ -72,7 +72,7 @@ export class SprintsService {
    * restricted to admins only. Read operations are open to all project members.
    */
   private assertAdminOrForbid(userRole: string, action: string) {
-    if (userRole !== 'ADMIN') {
+    if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       throw new ForbiddenException(`Only admins can ${action}`);
     }
   }

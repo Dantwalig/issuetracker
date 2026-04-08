@@ -152,7 +152,7 @@ export class AuthService {
   }
 
   async listUsers(callerId: string, callerRole: string) {
-    if (callerRole === 'ADMIN') {
+    if (callerRole === 'ADMIN' || callerRole === 'SUPERADMIN') {
       return this.prisma.user.findMany({
         select: {
           id: true,
