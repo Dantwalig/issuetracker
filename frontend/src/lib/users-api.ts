@@ -4,14 +4,18 @@ import { User, Role } from '@/types';
 export interface CreateUserPayload {
   email: string;
   fullName: string;
-  role?: Role;
+  role?: 'ADMIN' | 'MEMBER';
 }
 
 export const usersApi = {
   list: () => api.get<User[]>('/auth/users').then((r) => r.data),
   create: (payload: CreateUserPayload) =>
     api.post<User>('/auth/users', payload).then((r) => r.data),
-  updateRole: (id: string, role: Role) =>
+  hasSuperAdmin: () =>
+    api.get<{ exists: boolean }>('/auth/superadmin/exists').then((r) => r.data),
+  promoteSuperAdmin: (id: string) =>
+    api.post<User>(`/auth/users/${id}/promote-superadmin`).then((r) => r.data),
+  updateRole: (id: string, role: 'ADMIN' | 'MEMBER') =>
     api.patch<User>(`/auth/users/${id}/role`, { role }).then((r) => r.data),
   deactivate: (id: string) =>
     api.patch<User>(`/auth/users/${id}/deactivate`).then((r) => r.data),

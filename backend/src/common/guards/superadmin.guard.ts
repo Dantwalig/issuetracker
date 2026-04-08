@@ -1,13 +1,12 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 
 @Injectable()
-export class AdminGuard implements CanActivate {
+export class SuperAdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
-    // Both ADMIN and SUPERADMIN pass this guard
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPERADMIN')) {
-      throw new ForbiddenException('Admin access required');
+    if (!user || user.role !== 'SUPERADMIN') {
+      throw new ForbiddenException('Superadmin access required');
     }
     return true;
   }

@@ -22,6 +22,7 @@ import {
 } from './dto/auth.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
+import { SuperAdminGuard } from '../common/guards/superadmin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('auth')
@@ -76,15 +77,34 @@ export class AuthController {
     return this.authService.createUser(dto);
   }
 
+  // Check whether a superadmin already exists (used by the frontend to show/hide the promote button)
+  @Get('superadmin/exists')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  hasSuperAdmin() {
+    return this.authService.hasSuperAdmin();
+  }
+
+  // One-time promotion — only an ADMIN can call this, and only if no superadmin exists yet
+  @Post('users/:id/promote-superadmin')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @HttpCode(HttpStatus.OK)
+  promoteSuperAdmin(
+    @Param('id') targetId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.authService.promoteSuperAdmin(targetId, user.id);
+  }
+
+  // Role change — SUPERADMIN can change admin roles, ADMIN can only change member roles
   @Patch('users/:id/role')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @HttpCode(HttpStatus.OK)
   updateRole(
     @Param('id') targetId: string,
-    @CurrentUser() user: { id: string },
+    @CurrentUser() user: { id: string; role: string },
     @Body() dto: UpdateRoleDto,
   ) {
-    return this.authService.updateRole(targetId, user.id, dto);
+    return this.authService.updateRole(targetId, user.id, user.role, dto);
   }
 
   @Patch('users/:id/deactivate')
@@ -92,9 +112,9 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   deactivateUser(
     @Param('id') targetId: string,
-    @CurrentUser() user: { id: string },
+    @CurrentUser() user: { id: string; role: string },
   ) {
-    return this.authService.deactivateUser(targetId, user.id);
+    return this.authService.deactivateUser(targetId, user.id, user.role);
   }
 
   @Patch('users/:id/reactivate')
@@ -112,9 +132,9 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   deleteUser(
     @Param('id') targetId: string,
-    @CurrentUser() user: { id: string },
+    @CurrentUser() user: { id: string; role: string },
   ) {
-    return this.authService.deleteUser(targetId, user.id);
+    return this.authService.deleteUser(targetId, user.id, user.role);
   }
 
   @Post('forgot-password')

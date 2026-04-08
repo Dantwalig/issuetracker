@@ -243,27 +243,75 @@ export class AuthService {
     };
   }
 
-  async updateRole(targetId: string, callerId: string, dto: UpdateRoleDto) {
+  async updateRole(targetId: string, callerId: string, callerRole: string, dto: UpdateRoleDto) {
     if (targetId === callerId) {
       throw new ForbiddenException('You cannot change your own role');
     }
     const user = await this.prisma.user.findUnique({ where: { id: targetId } });
     if (!user || !user.isActive) throw new NotFoundException('User not found');
 
+    // Only SUPERADMIN can change another admin's role
+    if (user.role === 'ADMIN' && callerRole !== 'SUPERADMIN') {
+      throw new ForbiddenException('Only a superadmin can change another admin\'s role');
+    }
+
+    // Nobody can demote a SUPERADMIN via this endpoint
+    if (user.role === 'SUPERADMIN') {
+      throw new ForbiddenException('The superadmin role cannot be changed');
+    }
+
     const updated = await this.prisma.user.update({
       where: { id: targetId },
-      data: { role: dto.role },
+      data: { role: dto.role as Role },
       select: { id: true, email: true, fullName: true, role: true, isActive: true, createdAt: true },
     });
     return updated;
   }
 
-  async deactivateUser(targetId: string, callerId: string) {
+  async hasSuperAdmin() {
+    const count = await this.prisma.user.count({ where: { role: Role.SUPERADMIN } });
+    return { exists: count > 0 };
+  }
+
+  async promoteSuperAdmin(targetId: string, callerId: string) {
+    if (targetId === callerId) {
+      throw new ForbiddenException('You cannot promote yourself to superadmin');
+    }
+
+    // Check no superadmin exists yet
+    const existing = await this.prisma.user.findFirst({
+      where: { role: Role.SUPERADMIN },
+    });
+    if (existing) {
+      throw new ForbiddenException('A superadmin already exists — this action can only be done once');
+    }
+
+    const target = await this.prisma.user.findUnique({ where: { id: targetId } });
+    if (!target || !target.isActive) throw new NotFoundException('User not found');
+    if (target.role !== Role.ADMIN) {
+      throw new ForbiddenException('Only an admin can be promoted to superadmin');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: targetId },
+      data: { role: Role.SUPERADMIN },
+      select: { id: true, email: true, fullName: true, role: true, isActive: true, createdAt: true },
+    });
+    return updated;
+  }
+
+  async deactivateUser(targetId: string, callerId: string, callerRole: string) {
     if (targetId === callerId) {
       throw new ForbiddenException('You cannot deactivate your own account');
     }
     const user = await this.prisma.user.findUnique({ where: { id: targetId } });
     if (!user) throw new NotFoundException('User not found');
+    if (user.role === 'SUPERADMIN') {
+      throw new ForbiddenException('The superadmin account cannot be deactivated');
+    }
+    if (user.role === 'ADMIN' && callerRole !== 'SUPERADMIN') {
+      throw new ForbiddenException('Only a superadmin can deactivate another admin');
+    }
     if (!user.isActive) throw new BadRequestException('User is already deactivated');
 
     const updated = await this.prisma.user.update({
@@ -290,12 +338,18 @@ export class AuthService {
     return updated;
   }
 
-  async deleteUser(targetId: string, callerId: string) {
+  async deleteUser(targetId: string, callerId: string, callerRole: string) {
     if (targetId === callerId) {
       throw new ForbiddenException('You cannot delete your own account');
     }
     const user = await this.prisma.user.findUnique({ where: { id: targetId } });
     if (!user) throw new NotFoundException('User not found');
+    if (user.role === 'SUPERADMIN') {
+      throw new ForbiddenException('The superadmin account cannot be deleted');
+    }
+    if (user.role === 'ADMIN' && callerRole !== 'SUPERADMIN') {
+      throw new ForbiddenException('Only a superadmin can delete another admin');
+    }
 
     await this.prisma.user.delete({ where: { id: targetId } });
     return { message: 'User permanently deleted' };

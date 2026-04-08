@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'MEMBER';
+export type Role = 'SUPERADMIN' | 'ADMIN' | 'MEMBER';
 export type IssueType = 'TASK' | 'BUG' | 'STORY';
 export type IssueStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 export type IssuePriority = 'LOW' | 'MEDIUM' | 'HIGH';
