@@ -58,6 +58,7 @@ export class EmailService {
     fullName: string;
     tempPassword: string;
   }): Promise<void> {
+    const platformUrl = 'https://trackr.ubwengelab.rw';
     await this.send({
       to: opts.to,
       subject: 'Your Trackr account is ready',
@@ -67,10 +68,22 @@ export class EmailService {
           <p style="color:#444;line-height:1.6;">An administrator has created an account for you.
           Use the credentials below to sign in for the first time.</p>
           <div style="background:#f5f5f5;border-radius:8px;padding:16px 20px;margin:24px 0;">
-            <p style="margin:0 0 8px;color:#666;font-size:13px;text-transform:uppercase;letter-spacing:.05em;">Your temporary password</p>
+            <p style="margin:0 0 4px;color:#666;font-size:13px;text-transform:uppercase;letter-spacing:.05em;">Email</p>
+            <p style="margin:0 0 16px;font-size:15px;color:#111;">${opts.to}</p>
+            <p style="margin:0 0 4px;color:#666;font-size:13px;text-transform:uppercase;letter-spacing:.05em;">Temporary password</p>
             <p style="margin:0;font-size:22px;font-weight:700;letter-spacing:.1em;color:#111;font-family:monospace;">${opts.tempPassword}</p>
           </div>
-          <p style="color:#444;line-height:1.6;">You will be asked to choose a new password immediately after your first login.</p>
+          <div style="text-align:center;margin:28px 0;">
+            <a href="${platformUrl}"
+               style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;
+                      padding:12px 28px;border-radius:8px;font-size:15px;font-weight:600;">
+              Sign in to Trackr
+            </a>
+          </div>
+          <p style="color:#666;font-size:13px;line-height:1.6;text-align:center;">
+            Or go to <a href="${platformUrl}" style="color:#6366f1;">${platformUrl}</a>
+          </p>
+          <p style="color:#444;line-height:1.6;margin-top:24px;">You will be asked to choose a new password immediately after your first login.</p>
           <p style="color:#888;font-size:12px;margin-top:32px;">If you didn't expect this email, you can safely ignore it.</p>
         </div>`,
     });
