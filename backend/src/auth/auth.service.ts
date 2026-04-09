@@ -351,10 +351,26 @@ export class AuthService {
       throw new ForbiddenException('Only a superadmin can delete another admin');
     }
 
-    // Nullify assignee references before deleting to avoid FK constraint errors
+    // Resolve all FK constraints before deleting the user.
+    // Cascade relations (TeamMember, ProjectMember, Notification) are handled by the DB.
+    // Non-cascade relations must be cleaned up manually:
+
+    // 1. Issues where user is the assignee — nullify (optional field)
     await this.prisma.issue.updateMany({
       where: { assigneeId: targetId },
       data: { assigneeId: null },
+    });
+
+    // 2. Issues where user is the reporter — reassign to a system placeholder or delete
+    //    Deleting reported issues also cascades their comments, so this is safe.
+    await this.prisma.issue.deleteMany({
+      where: { reporterId: targetId },
+    });
+
+    // 3. Comments authored by this user on issues they did NOT report
+    //    (issues they reported were already deleted above)
+    await this.prisma.comment.deleteMany({
+      where: { authorId: targetId },
     });
 
     await this.prisma.user.delete({ where: { id: targetId } });
