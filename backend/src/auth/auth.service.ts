@@ -41,6 +41,43 @@ export class AuthService {
     private readonly emailService: EmailService,
   ) {}
 
+  async register(dto: CreateUserDto) {
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (existing) {
+      throw new ConflictException('An account with that email already exists');
+    }
+
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        fullName: dto.fullName,
+        passwordHash,
+        mustChangePassword: true,
+        role: dto.role ?? 'MEMBER'
+      },
+    });
+
+    await this.emailService.sendWelcome({
+      to: user.email,
+      fullName: user.fullName,
+      tempPassword,
+    });
+
+    return {
+      message: 'User created and welcome email sent',
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      },
+    };
+  }
+
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },

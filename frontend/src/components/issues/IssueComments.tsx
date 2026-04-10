@@ -6,6 +6,7 @@ import { commentsApi } from '@/lib/comments-api';
 import { useAuth } from '@/lib/auth-context';
 import { canEditComment, canDeleteComment } from '@/lib/permissions';
 import { format } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
 import styles from './IssueComments.module.css';
 
 interface Props {
@@ -140,7 +141,9 @@ export function IssueComments({ issueId }: Props) {
                     </form>
                   ) : (
                     <>
-                      <p className={styles.text}>{comment.body}</p>
+                      <div className={styles.text}>
+                        <ReactMarkdown>{comment.body}</ReactMarkdown>
+                      </div>
                       {(canEdit || canDelete) && (
                         <div className={styles.actions}>
                           {canEdit && (

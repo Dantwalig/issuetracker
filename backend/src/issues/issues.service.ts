@@ -6,8 +6,9 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateIssueDto, UpdateIssueDto } from './dto/issue.dto';
+import { Prisma } from '@prisma/client';
 
-const issueSelect = {
+const issueSelect = Prisma.validator<Prisma.IssueSelect>()({
   id: true,
   title: true,
   description: true,
@@ -30,7 +31,9 @@ const issueSelect = {
   project: {
     select: { id: true, name: true },
   },
-};
+});
+
+type IssueWithRelations = Prisma.IssueGetPayload<{ select: typeof issueSelect }>;
 
 @Injectable()
 export class IssuesService {
@@ -53,11 +56,13 @@ export class IssuesService {
   }
 
   async create(dto: CreateIssueDto, reporterId: string, userRole: string) {
-    await this.assertProjectAccess(dto.projectId, reporterId, userRole);
+    const { projectId, ...rest } = dto;
+    if (!projectId) throw new ForbiddenException('projectId is required');
+    await this.assertProjectAccess(projectId, reporterId, userRole);
 
     // Place new issue at the end of the backlog
     const backlogMax = await this.prisma.issue.aggregate({
-      where: { projectId: dto.projectId, sprintId: null },
+      where: { projectId, sprintId: null },
       _max: { backlogOrder: true },
     });
     const backlogOrder = (backlogMax._max.backlogOrder ?? -1) + 1;
@@ -75,7 +80,7 @@ export class IssuesService {
         backlogOrder,
       },
       select: issueSelect,
-    });
+    }) as IssueWithRelations;
 
     if (issue.assigneeId && issue.assigneeId !== reporterId) {
       await this.notifications.create({
@@ -144,7 +149,7 @@ export class IssuesService {
       where: { id },
       data: dto,
       select: issueSelect,
-    });
+    }) as IssueWithRelations;
 
     const assigneeChanged =
       dto.assigneeId !== undefined && dto.assigneeId !== before.assigneeId;
