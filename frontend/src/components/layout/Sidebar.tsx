@@ -33,7 +33,7 @@ export function Sidebar() {
             <ProjectsIcon />
             Projects
           </Link>
-          {user?.role === 'ADMIN' && (
+          {(user?.role === 'ADMIN' || user?.role === 'SUPERADMIN') && (
             <Link
               href="/admin/users"
               className={`${styles.navItem} ${pathname.startsWith('/admin') ? styles.active : ''}`}

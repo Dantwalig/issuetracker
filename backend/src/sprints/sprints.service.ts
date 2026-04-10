@@ -59,7 +59,7 @@ export class SprintsService {
       include: { members: true },
     });
     if (!project) throw new NotFoundException(`Project ${projectId} not found`);
-    if (userRole !== 'ADMIN') {
+    if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       const isMember = project.members.some((m) => m.userId === userId);
       if (!isMember)
         throw new ForbiddenException('You are not a member of this project');
@@ -72,7 +72,7 @@ export class SprintsService {
    * restricted to admins only. Read operations are open to all project members.
    */
   private assertAdminOrForbid(userRole: string, action: string) {
-    if (userRole !== 'ADMIN') {
+    if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       throw new ForbiddenException(`Only admins can ${action}`);
     }
   }
@@ -182,15 +182,6 @@ export class SprintsService {
     if (sprint.status !== 'DRAFT') {
       throw new BadRequestException(
         `Sprint is already ${sprint.status.toLowerCase()}`,
-      );
-    }
-
-    const alreadyActive = await this.prisma.sprint.findFirst({
-      where: { projectId: sprint.projectId, status: 'ACTIVE' },
-    });
-    if (alreadyActive) {
-      throw new ConflictException(
-        'Another sprint is already active in this project',
       );
     }
 

@@ -1,6 +1,7 @@
 .shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;        /* exact viewport height — no overflow on the shell */
+  overflow: hidden;     /* prevent the shell itself from scrolling */
   background: var(--bg);
 }
 
@@ -8,7 +9,7 @@
   flex: 1;
   min-width: 0;
   padding: 32px;
-  overflow-y: auto;
+  overflow-y: auto;     /* only the content area scrolls */
 }
 
 .loadingScreen {

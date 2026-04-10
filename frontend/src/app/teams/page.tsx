@@ -56,7 +56,7 @@ export default function TeamsPage() {
           <h1 className={styles.heading}>Teams</h1>
           <p className={styles.sub}>{teams.length} team{teams.length !== 1 ? 's' : ''}</p>
         </div>
-        {user?.role === 'ADMIN' && (
+        {user?.role === 'ADMIN' || user?.role === 'SUPERADMIN' && (
           <button className={styles.createBtn} onClick={() => setShowCreate(true)}>
             <span>+</span> New team
           </button>

@@ -39,7 +39,7 @@ export class BacklogService {
       include: { members: true },
     });
     if (!project) throw new NotFoundException(`Project ${projectId} not found`);
-    if (userRole !== 'ADMIN') {
+    if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       const isMember = project.members.some((m) => m.userId === userId);
       if (!isMember)
         throw new ForbiddenException('You are not a member of this project');
@@ -135,7 +135,7 @@ export class BacklogService {
       });
     } else {
       // Moving INTO a sprint: admin only (consistent with sprint planning controls)
-      if (userRole !== 'ADMIN') {
+      if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
         throw new ForbiddenException('Only admins can move issues into a sprint');
       }
       // Moving into a sprint: validate sprint exists and is not completed

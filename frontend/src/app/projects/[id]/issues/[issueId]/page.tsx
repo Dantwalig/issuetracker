@@ -13,6 +13,7 @@ import { IssueForm } from '@/components/issues/IssueForm';
 import { IssueComments } from '@/components/issues/IssueComments';
 import { IssueUser } from '@/types';
 import { format } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
 import styles from './page.module.css';
 
 export default function IssueDetailPage() {
@@ -105,7 +106,7 @@ export default function IssueDetailPage() {
         </div>
         <h1 className={styles.title}>{issue.title}</h1>
         {issue.description
-          ? <p className={styles.description}>{issue.description}</p>
+          ? <div className={styles.description}><ReactMarkdown>{issue.description}</ReactMarkdown></div>
           : <p className={styles.noDesc}>No description provided.</p>}
         <div className={styles.meta}>
           <div className={styles.metaItem}>

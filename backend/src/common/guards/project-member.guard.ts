@@ -18,7 +18,7 @@ export class ProjectMemberGuard implements CanActivate {
     const req = context.switchToHttp().getRequest();
     const user = req.user;
     if (!user) throw new ForbiddenException('Not authenticated');
-    if (user.role === 'ADMIN') return true;
+    if (user.role === 'ADMIN' || user.role === 'SUPERADMIN') return true;
 
     const projectId = req.params.projectId ?? req.params.id;
     if (!projectId) return true; // no project param – skip

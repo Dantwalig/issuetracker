@@ -10,8 +10,13 @@ import { User, Issue, Comment, Project } from '@/types';
 
 // ── Roles ──────────────────────────────────────────────────────────────────
 
+/** True for both ADMIN and SUPERADMIN */
 export function isAdmin(user: User | null | undefined): boolean {
-  return user?.role === 'ADMIN';
+  return user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
+}
+
+export function isSuperAdmin(user: User | null | undefined): boolean {
+  return user?.role === 'SUPERADMIN';
 }
 
 export function isProjectMember(user: User | null | undefined, project: Project | null | undefined): boolean {

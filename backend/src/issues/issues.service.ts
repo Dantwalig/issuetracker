@@ -6,8 +6,9 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateIssueDto, UpdateIssueDto } from './dto/issue.dto';
+import { Prisma } from '@prisma/client';
 
-const issueSelect = {
+const issueSelect = Prisma.validator<Prisma.IssueSelect>()({
   id: true,
   title: true,
   description: true,
@@ -30,7 +31,9 @@ const issueSelect = {
   project: {
     select: { id: true, name: true },
   },
-};
+});
+
+type IssueWithRelations = Prisma.IssueGetPayload<{ select: typeof issueSelect }>;
 
 @Injectable()
 export class IssuesService {
@@ -45,7 +48,7 @@ export class IssuesService {
       include: { members: true },
     });
     if (!project) throw new NotFoundException(`Project ${projectId} not found`);
-    if (userRole !== 'ADMIN') {
+    if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       const isMember = project.members.some((m) => m.userId === userId);
       if (!isMember) throw new ForbiddenException('You are not a member of this project');
     }
@@ -65,16 +68,26 @@ export class IssuesService {
     const backlogOrder = (backlogMax._max.backlogOrder ?? -1) + 1;
 
     const issue = await this.prisma.issue.create({
-      data: { ...rest, projectId, reporterId, backlogOrder },
+      data: {
+        title: dto.title,
+        description: dto.description,
+        type: dto.type,
+        status: dto.status,
+        priority: dto.priority,
+        assigneeId: dto.assigneeId,
+        projectId: dto.projectId!,
+        reporterId,
+        backlogOrder,
+      },
       select: issueSelect,
-    }) as any;
+    }) as IssueWithRelations;
 
     if (issue.assigneeId && issue.assigneeId !== reporterId) {
       await this.notifications.create({
         userId: issue.assigneeId,
         type: 'ISSUE_ASSIGNED',
         title: 'Issue assigned to you',
-        message: `You were assigned to "${issue.title}" in ${issue.project.name}`,
+        message: `You were assigned to "${issue.title}" in ${issue.project?.name ?? 'a project'}`,
         issueId: issue.id,
         projectId: issue.projectId,
       });
@@ -113,7 +126,7 @@ export class IssuesService {
     if (!before) throw new NotFoundException(`Issue ${id} not found`);
     await this.assertProjectAccess(before.projectId, userId, userRole);
 
-    const isAdmin = userRole === 'ADMIN';
+    const isAdmin = userRole === 'ADMIN' || userRole === 'SUPERADMIN';
     const isReporter = before.reporterId === userId;
     const isAssignee = before.assigneeId === userId;
 
@@ -136,7 +149,7 @@ export class IssuesService {
       where: { id },
       data: dto,
       select: issueSelect,
-    }) as any;
+    }) as IssueWithRelations;
 
     const assigneeChanged =
       dto.assigneeId !== undefined && dto.assigneeId !== before.assigneeId;
@@ -145,7 +158,7 @@ export class IssuesService {
         userId: issue.assigneeId,
         type: 'ISSUE_ASSIGNED',
         title: 'Issue assigned to you',
-        message: `You were assigned to "${issue.title}" in ${issue.project.name}`,
+        message: `You were assigned to "${issue.title}" in ${issue.project?.name ?? 'a project'}`,
         issueId: issue.id,
         projectId: issue.projectId,
       });
@@ -161,7 +174,7 @@ export class IssuesService {
     const issue = await this.prisma.issue.findUnique({ where: { id } });
     if (!issue) throw new NotFoundException(`Issue ${id} not found`);
     await this.assertProjectAccess(issue.projectId, userId, userRole);
-    if (issue.reporterId !== userId && userRole !== 'ADMIN') {
+    if (issue.reporterId !== userId && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       throw new ForbiddenException('Only the reporter or an admin can delete this issue');
     }
     await this.prisma.issue.delete({ where: { id } });

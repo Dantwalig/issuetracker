@@ -10,6 +10,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -19,15 +20,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  async function fetchMe() {
+    const res = await api.get<User>('/auth/me');
+    setUser(res.data);
+    return res.data;
+  }
+
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
       setLoading(false);
       return;
     }
-    api
-      .get<User>('/auth/me')
-      .then((res) => setUser(res.data))
+    fetchMe()
+      .then((u) => {
+        if (u.mustChangePassword) {
+          router.push('/change-password');
+        }
+      })
       .catch(() => {
         localStorage.clear();
         router.push('/login');
@@ -43,7 +53,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user as User);
-    router.push('/projects');
+
+    if (data.user.mustChangePassword) {
+      router.push('/change-password');
+    } else {
+      router.push('/projects');
+    }
   }
 
   async function logout() {
@@ -56,8 +71,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function refreshUser() {
+    await fetchMe();
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

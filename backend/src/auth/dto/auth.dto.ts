@@ -1,4 +1,10 @@
-import { IsEmail, IsString, MinLength, IsEnum, IsOptional } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  IsEnum,
+  IsOptional,
+} from 'class-validator';
 import { Role } from '@prisma/client';
 
 export class LoginDto {
@@ -20,14 +26,40 @@ export class CreateUserDto {
   email: string;
 
   @IsString()
-  @MinLength(6)
-  password: string;
-
-  @IsString()
   @MinLength(2)
   fullName: string;
 
   @IsOptional()
-  @IsEnum(Role)
-  role?: Role;
+  @IsEnum(['ADMIN', 'MEMBER'])
+  role?: 'ADMIN' | 'MEMBER';
+}
+
+export class ChangePasswordDto {
+  @IsString()
+  @MinLength(6)
+  currentPassword: string;
+
+  @IsString()
+  @MinLength(6)
+  newPassword: string;
+}
+
+// Regular admins can only set ADMIN or MEMBER — SUPERADMIN has its own endpoint
+export class UpdateRoleDto {
+  @IsEnum(['ADMIN', 'MEMBER'])
+  role: 'ADMIN' | 'MEMBER';
+}
+
+export class ForgotPasswordDto {
+  @IsEmail()
+  email: string;
+}
+
+export class ResetPasswordDto {
+  @IsString()
+  token: string;
+
+  @IsString()
+  @MinLength(6)
+  newPassword: string;
 }

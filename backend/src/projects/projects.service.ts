@@ -55,7 +55,7 @@ export class ProjectsService {
   }
 
   async findAll(userId: string, userRole: string) {
-    if (userRole === 'ADMIN') {
+    if (userRole === 'ADMIN' || userRole === 'SUPERADMIN') {
       return this.prisma.project.findMany({ select: projectSelect, orderBy: { name: 'asc' } });
     }
     return this.prisma.project.findMany({
@@ -68,7 +68,7 @@ export class ProjectsService {
   async findOne(id: string, userId: string, userRole: string) {
     const project = await this.prisma.project.findUnique({ where: { id }, select: projectSelect });
     if (!project) throw new NotFoundException(`Project ${id} not found`);
-    if (userRole !== 'ADMIN') {
+    if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       const isMember = project.members.some((m) => m.user.id === userId);
       if (!isMember) throw new ForbiddenException('You are not a member of this project');
     }
@@ -76,7 +76,7 @@ export class ProjectsService {
   }
 
   async update(id: string, dto: UpdateProjectDto, userId: string, userRole: string) {
-    if (userRole !== 'ADMIN') {
+    if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       throw new ForbiddenException('Only admins can update project settings');
     }
 
@@ -120,7 +120,7 @@ export class ProjectsService {
   }
 
   async addMember(projectId: string, userId: string, requesterId: string, requesterRole: string) {
-    if (requesterRole !== 'ADMIN') {
+    if (requesterRole !== 'ADMIN' && requesterRole !== 'SUPERADMIN') {
       throw new ForbiddenException('Only admins can add project members');
     }
     await this.findOne(projectId, requesterId, requesterRole);
@@ -135,7 +135,7 @@ export class ProjectsService {
   }
 
   async removeMember(projectId: string, userId: string, requesterId: string, requesterRole: string) {
-    if (requesterRole !== 'ADMIN') {
+    if (requesterRole !== 'ADMIN' && requesterRole !== 'SUPERADMIN') {
       throw new ForbiddenException('Only admins can remove project members');
     }
     await this.findOne(projectId, requesterId, requesterRole);

@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'MEMBER';
+export type Role = 'SUPERADMIN' | 'ADMIN' | 'MEMBER';
 export type IssueType = 'TASK' | 'BUG' | 'STORY';
 export type IssueStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 export type IssuePriority = 'LOW' | 'MEDIUM' | 'HIGH';
@@ -10,6 +10,7 @@ export interface User {
   fullName: string;
   role: Role;
   isActive: boolean;
+  mustChangePassword?: boolean;
   createdAt: string;
 }
 
@@ -83,7 +84,7 @@ export interface Issue {
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
-  user: Pick<User, 'id' | 'email' | 'fullName' | 'role'>;
+  user: Pick<User, 'id' | 'email' | 'fullName' | 'role' | 'mustChangePassword'>;
 }
 
 export interface CreateIssuePayload {

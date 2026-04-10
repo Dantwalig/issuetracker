@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import styles from './login.module.css';
 
@@ -71,6 +72,12 @@ export default function LoginPage() {
           <button className={styles.btn} type="submit" disabled={loading}>
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
+
+          <p className={styles.hint} style={{ textAlign: 'right', marginTop: 0 }}>
+            <Link href="/forgot-password" style={{ color: 'var(--text-2)' }}>
+              Forgot your password?
+            </Link>
+          </p>
         </form>
 
         <p className={styles.hint}>
