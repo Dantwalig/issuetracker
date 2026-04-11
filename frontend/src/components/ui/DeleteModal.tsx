@@ -23,6 +23,7 @@ export function DeleteModal({ itemName, itemType, onConfirm, onCancel }: Props) 
       await onConfirm(reason.trim());
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to delete');
+    } finally {
       setLoading(false);
     }
   }

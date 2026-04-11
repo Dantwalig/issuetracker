@@ -306,7 +306,7 @@ export class RecycleBinService {
             </p>
             <div style="background:#f5f5f5;border-radius:8px;padding:16px 20px;margin:20px 0;">
               <p style="margin:0 0 4px;color:#666;font-size:13px;text-transform:uppercase;">Reason</p>
-              <p style="margin:0;color:#111;">${reason}</p>
+              <p style="margin:0;color:#111;">${this.escapeHtml(reason)}</p>
             </div>
             <p style="color:#444;line-height:1.6;">
               This item has been moved to the recycle bin and can be restored within 30 days.
@@ -346,29 +346,104 @@ export class RecycleBinService {
   }
 
   private async _restoreProject(snap: any) {
-    await this.prisma.project.create({
-      data: {
-        id: snap.id,
-        name: snap.name,
-        description: snap.description,
-        teamId: snap.teamId,
-        createdById: snap.createdById,
-        createdAt: new Date(snap.createdAt),
-        members: { create: snap.members },
-      },
+    // Guard: if the project's team was also deleted, sever the team link to avoid FK failure
+    let safeTeamId: string | null = snap.teamId ?? null;
+    if (safeTeamId) {
+      const teamExists = await this.prisma.team.findUnique({ where: { id: safeTeamId }, select: { id: true } });
+      if (!teamExists) safeTeamId = null;
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.project.create({
+        data: {
+          id: snap.id,
+          name: snap.name,
+          description: snap.description,
+          teamId: safeTeamId,
+          createdById: snap.createdById,
+          createdAt: new Date(snap.createdAt),
+          members: { create: snap.members ?? [] },
+        },
+      });
+
+      // Restore sprints
+      if (snap.sprints?.length) {
+        for (const sprint of snap.sprints) {
+          await tx.sprint.create({
+            data: {
+              id: sprint.id,
+              name: sprint.name,
+              projectId: snap.id,
+              startDate: sprint.startDate ? new Date(sprint.startDate) : null,
+              endDate: sprint.endDate ? new Date(sprint.endDate) : null,
+              status: sprint.status,
+              createdAt: new Date(sprint.createdAt),
+            },
+          });
+        }
+      }
+
+      // Restore issues (and their comments)
+      if (snap.issues?.length) {
+        for (const issue of snap.issues) {
+          await tx.issue.create({
+            data: {
+              id: issue.id,
+              title: issue.title,
+              description: issue.description,
+              type: issue.type,
+              status: issue.status,
+              priority: issue.priority,
+              storyPoints: issue.storyPoints,
+              deadline: issue.deadline ? new Date(issue.deadline) : null,
+              assigneeId: issue.assigneeId,
+              reporterId: issue.reporterId,
+              createdById: issue.createdById,
+              projectId: snap.id,
+              sprintId: issue.sprintId,
+              backlogOrder: issue.backlogOrder,
+              createdAt: new Date(issue.createdAt),
+            },
+          });
+
+          if (issue.comments?.length) {
+            for (const comment of issue.comments) {
+              await tx.comment.create({
+                data: {
+                  id: comment.id,
+                  issueId: issue.id,
+                  authorId: comment.authorId,
+                  body: comment.body,
+                  createdAt: new Date(comment.createdAt),
+                },
+              });
+            }
+          }
+        }
+      }
     });
   }
 
   private async _restoreTeam(snap: any) {
-    await this.prisma.team.create({
-      data: {
-        id: snap.id,
-        name: snap.name,
-        description: snap.description,
-        createdById: snap.createdById,
-        createdAt: new Date(snap.createdAt),
-        members: { create: snap.members },
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.team.create({
+        data: {
+          id: snap.id,
+          name: snap.name,
+          description: snap.description,
+          createdById: snap.createdById,
+          createdAt: new Date(snap.createdAt),
+          members: { create: snap.members ?? [] },
+        },
+      });
+
+      // Re-link any projects that already exist in the DB but lost their teamId
+      if (snap.projects?.length) {
+        await tx.project.updateMany({
+          where: { id: { in: snap.projects } },
+          data: { teamId: snap.id },
+        });
+      }
     });
   }
 }

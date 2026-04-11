@@ -46,7 +46,23 @@ export function DeadlineBadge({ deadline, status }: { deadline?: string | null; 
       color: overdue ? '#ef4444' : '#f59e0b',
       border: `1px solid ${overdue ? '#fecaca' : '#fde68a'}`,
     }}>
-      {overdue ? '⚠ Overdue' : '⏰ Due soon'}
+      {overdue ? (
+        <>
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden style={{flexShrink:0}}>
+            <path d="M8 1L1 14h14L8 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+            <path d="M8 6v4M8 11.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          Overdue
+        </>
+      ) : (
+        <>
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden style={{flexShrink:0}}>
+            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Due soon
+        </>
+      )}
     </span>
   );
 }

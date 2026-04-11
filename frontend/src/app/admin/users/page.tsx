@@ -115,13 +115,30 @@ function UserModal({
 
         <div className={styles.modalBody}>
           {isSelf && (
-            <p className={styles.selfNote}>⚠ You cannot edit your own account.</p>
+            <p className={styles.selfNote}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden style={{flexShrink:0,verticalAlign:'middle',marginRight:4}}>
+              <path d="M8 1L1 14h14L8 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+              <path d="M8 6v4M8 11.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            You cannot edit your own account.</p>
           )}
           {targetIsSuperAdmin && !isSelf && (
-            <p className={styles.selfNote}>🔒 The superadmin account cannot be modified.</p>
+            <p className={styles.selfNote}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden style={{flexShrink:0,verticalAlign:'middle',marginRight:4}}>
+              <rect x="3" y="7" width="10" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M5 7V5a3 3 0 1 1 6 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              <circle cx="8" cy="11" r="1.2" fill="currentColor"/>
+            </svg>
+            The superadmin account cannot be modified.</p>
           )}
           {!isSelf && !canManage && (
-            <p className={styles.selfNote}>🔒 Only a superadmin can manage other admins.</p>
+            <p className={styles.selfNote}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden style={{flexShrink:0,verticalAlign:'middle',marginRight:4}}>
+              <rect x="3" y="7" width="10" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M5 7V5a3 3 0 1 1 6 0v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              <circle cx="8" cy="11" r="1.2" fill="currentColor"/>
+            </svg>
+            Only a superadmin can manage other admins.</p>
           )}
 
           {/* One-time superadmin promotion */}
@@ -134,7 +151,7 @@ function UserModal({
                   onClick={() => setConfirmPromote(true)}
                   disabled={busy}
                 >
-                  ⭐ Promote to Superadmin
+                  Promote to Superadmin
                 </button>
               ) : (
                 <div className={styles.confirmBox}>
@@ -327,7 +344,12 @@ export default function AdminUsersPage() {
             <button className={styles.btnPrimary} type="submit" disabled={mutation.isPending}>
               {mutation.isPending ? 'Creating…' : 'Create user & send invite'}
             </button>
-            {success && <span className={styles.success}>✓ {success}</span>}
+            {success && <span className={styles.success}>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden style={{verticalAlign:'middle',marginRight:3}}>
+                <path d="M3 8l4 4 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              {success}
+            </span>}
             {formError && <span className={styles.error}>{formError}</span>}
           </div>
         </form>

@@ -14,6 +14,15 @@ export class DeletionRequestsService {
     private readonly recycleBin: RecycleBinService,
   ) {}
 
+  private escapeHtml(value: string | null | undefined): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   async requestDelete(issueId: string, requestedById: string, reason: string) {
     if (!reason?.trim()) throw new BadRequestException('A reason is required');
 
@@ -22,6 +31,14 @@ export class DeletionRequestsService {
       include: { project: { include: { members: { include: { user: true } } } } },
     });
     if (!issue) throw new NotFoundException('Issue not found');
+
+    // Verify the requester is a member (or reporter) of this issue's project
+    const requesterUser = await this.prisma.user.findUnique({ where: { id: requestedById }, select: { role: true } });
+    const isPrivileged = requesterUser?.role === 'ADMIN' || requesterUser?.role === 'SUPERADMIN';
+    const isMember = issue.project.members.some(m => m.userId === requestedById);
+    if (!isPrivileged && !isMember) {
+      throw new ForbiddenException('You are not a member of the project this issue belongs to');
+    }
 
     // Check no pending request already exists
     const existing = await this.prisma.deletionRequest.findFirst({
@@ -59,7 +76,7 @@ export class DeletionRequestsService {
             <p><strong>${requester?.fullName}</strong> has requested to delete issue "<strong>${issue.title}</strong>".</p>
             <div style="background:#f5f5f5;border-radius:8px;padding:16px;margin:16px 0;">
               <p style="margin:0 0 4px;font-size:13px;color:#666;">Reason</p>
-              <p style="margin:0;">${reason}</p>
+              <p style="margin:0;">${this.escapeHtml(reason)}</p>
             </div>
             <a href="https://trackr.ubwengelab.rw/admin/deletion-requests"
                style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">
@@ -133,7 +150,7 @@ export class DeletionRequestsService {
           <strong>${approved ? 'approved' : 'rejected'}</strong> by ${responder?.fullName}.</p>
           <div style="background:#f5f5f5;border-radius:8px;padding:16px;margin:16px 0;">
             <p style="margin:0 0 4px;font-size:13px;color:#666;">Reason</p>
-            <p style="margin:0;">${responseReason}</p>
+            <p style="margin:0;">${this.escapeHtml(responseReason)}</p>
           </div>
           <a href="https://trackr.ubwengelab.rw"
              style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">

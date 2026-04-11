@@ -126,7 +126,9 @@ export default function ProfilePage() {
           <input className={`${styles.input} ${styles.inputDisabled}`} value={user?.role ?? ''} disabled />
         </div>
 
-        {profileSuccess && <p className={styles.success}>✓ {profileSuccess}</p>}
+        {profileSuccess && <p className={styles.success}><svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden style={{verticalAlign:'middle',marginRight:4}}>
+              <path d="M3 8l4 4 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>{profileSuccess}</p>}
         {profileError && <p className={styles.error}>{profileError}</p>}
 
         <button
@@ -157,7 +159,9 @@ export default function ProfilePage() {
             <input className={styles.input} type="password" value={confirmPw}
               onChange={e => { setConfirmPw(e.target.value); setPwError(''); setPwSuccess(''); }} required />
           </div>
-          {pwSuccess && <p className={styles.success}>✓ {pwSuccess}</p>}
+          {pwSuccess && <p className={styles.success}><svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden style={{verticalAlign:'middle',marginRight:4}}>
+              <path d="M3 8l4 4 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>{pwSuccess}</p>}
           {pwError && <p className={styles.error}>{pwError}</p>}
           <button type="submit" className={styles.saveBtn} disabled={pwMutation.isPending}>
             {pwMutation.isPending ? 'Updating…' : 'Update password'}

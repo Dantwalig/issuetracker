@@ -97,7 +97,13 @@ export default function DeletionRequestsPage() {
         {requests.map(req => (
           <div key={req.id} className={styles.card}>
             <div className={styles.cardInfo}>
-              <p className={styles.issueName}>🎯 {req.issue.title}</p>
+              <p className={styles.issueName}>
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden style={{verticalAlign:'middle',marginRight:5}}>
+                  <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4"/>
+                  <circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.4"/>
+                  <circle cx="8" cy="8" r="1" fill="currentColor"/>
+                </svg>
+                {req.issue.title}</p>
               <p className={styles.meta}>
                 Requested by <strong>{req.requestedBy.fullName}</strong>
                 {' '}· {formatDistanceToNow(new Date(req.createdAt), { addSuffix: true })}
@@ -105,7 +111,12 @@ export default function DeletionRequestsPage() {
               <p className={styles.reason}>{req.reason}</p>
             </div>
             <button className={styles.reviewBtn} onClick={() => setSelected(req)}>
-              Review →
+              <span style={{display:'inline-flex',alignItems:'center',gap:4}}>
+                Review
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
+                  <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </span>
             </button>
           </div>
         ))}

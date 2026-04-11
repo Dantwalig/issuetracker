@@ -191,7 +191,7 @@ export default function IssueDetailPage() {
           <div style={{ padding: '4px 0' }}>
             {requestSuccess ? (
               <div>
-                <p style={{ color: 'var(--success, #22c55e)', marginBottom: 16 }}>✓ {requestSuccess}</p>
+                <p style={{ color: 'var(--success, #22c55e)', marginBottom: 16, display:'flex', alignItems:'center' }}><svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden style={{verticalAlign:'middle',marginRight:4}}><path d="M3 8l4 4 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>{requestSuccess}</p>
                 <button
                   onClick={() => { setShowRequestDelete(false); setRequestSuccess(''); }}
                   style={{ height: 36, padding: '0 16px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 14 }}

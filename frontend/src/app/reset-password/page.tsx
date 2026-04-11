@@ -57,7 +57,7 @@ function ResetForm() {
   if (done) {
     return (
       <p className={styles.sub}>
-        ✓ Password updated successfully! Redirecting you to sign in…
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden style={{verticalAlign:'middle',marginRight:4}}><path d="M3 8l4 4 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg> Password updated successfully! Redirecting you to sign in…
       </p>
     );
   }

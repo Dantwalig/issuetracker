@@ -147,8 +147,20 @@ export class IssuesService {
     }
 
     const updateData: any = { ...dto };
-    if (dto.deadline) updateData.deadline = new Date(dto.deadline);
-    else if (dto.deadline === '') updateData.deadline = null;
+    // Handle deadline: null clears it, a string converts it, undefined leaves it unchanged
+    if (dto.deadline === null) {
+      updateData.deadline = null;
+    } else if (dto.deadline) {
+      updateData.deadline = new Date(dto.deadline);
+    } else {
+      delete updateData.deadline;
+    }
+    // Handle storyPoints: null clears it, a number sets it, undefined leaves it unchanged
+    if (dto.storyPoints === null) {
+      updateData.storyPoints = null;
+    } else if (dto.storyPoints === undefined) {
+      delete updateData.storyPoints;
+    }
     const issue = await this.prisma.issue.update({
       where: { id },
       data: updateData,
