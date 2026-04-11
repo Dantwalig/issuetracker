@@ -91,8 +91,6 @@ export default function ProjectDetailPage() {
 
   return (
     <div className={styles.page}>
-      <div>
-        <BackButton href="/projects" label="All projects" />
       <div className={styles.topBar}>
         <button className={styles.backBtn} onClick={() => router.push('/projects')}>← All projects</button>
         <div className={styles.topActions}>
