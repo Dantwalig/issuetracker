@@ -14,6 +14,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { RecycleBinModule } from './recycle-bin/recycle-bin.module';
 import { DeletionRequestsModule } from './deletion-requests/deletion-requests.module';
 import { DeadlineModule } from './deadline/deadline.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { DeadlineModule } from './deadline/deadline.module';
     RecycleBinModule,
     DeletionRequestsModule,
     DeadlineModule,
+    MessagesModule,
   ],
 })
 export class AppModule {}

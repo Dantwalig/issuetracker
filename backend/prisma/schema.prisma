@@ -51,6 +51,8 @@ enum NotificationType {
   RESTORE_APPROVED
   RESTORE_REJECTED
   DEADLINE_REMINDER
+  DIRECT_MESSAGE
+  MENTION
 }
 
 enum DeletedItemType {
@@ -100,6 +102,9 @@ model User {
   deletionResponses DeletionRequest[] @relation("DeletionResponder")
   restoreRequests   RestoreRequest[]  @relation("RestoreRequester")
   restoreResponses  RestoreRequest[]  @relation("RestoreResponder")
+  sentMessages      DirectMessage[]   @relation("MessageSender")
+  receivedMessages  DirectMessage[]   @relation("MessageReceiver")
+  activityLogs      ActivityLog[]
 
   @@map("users")
 }
@@ -140,11 +145,12 @@ model Project {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  createdBy User            @relation("ProjectCreator", fields: [createdById], references: [id])
-  team      Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  members   ProjectMember[]
-  issues    Issue[]
-  sprints   Sprint[]
+  createdBy    User            @relation("ProjectCreator", fields: [createdById], references: [id])
+  team         Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  members      ProjectMember[]
+  issues       Issue[]
+  sprints      Sprint[]
+  activityLogs ActivityLog[]
 
   @@map("projects")
 }
@@ -177,6 +183,32 @@ model Sprint {
   @@map("sprints")
 }
 
+model Label {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#6366f1")
+  projectId String
+  createdAt DateTime @default(now())
+
+  project Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issues  IssueLabel[]
+
+  @@unique([name, projectId])
+  @@map("labels")
+}
+
+model IssueLabel {
+  issueId   String
+  labelId   String
+  createdAt DateTime @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([issueId, labelId])
+  @@map("issue_labels")
+}
+
 model Issue {
   id           String        @id @default(cuid())
   title        String
@@ -193,8 +225,9 @@ model Issue {
   sprintId     String?
   backlogOrder    Int?
   reminderSentAt  DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  shareToken      String?   @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   reporter  User     @relation("Reporter",     fields: [reporterId],  references: [id])
   assignee  User?    @relation("Assignee",     fields: [assigneeId],  references: [id])
@@ -202,23 +235,114 @@ model Issue {
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   sprint    Sprint?  @relation(fields: [sprintId],  references: [id], onDelete: SetNull)
   comments  Comment[]
+  labels    IssueLabel[]
+  checklists Checklist[]
   deletionRequests DeletionRequest[]
+  activityLogs ActivityLog[]
 
   @@map("issues")
 }
 
-model Comment {
-  id        String   @id @default(cuid())
+model Checklist {
+  id        String          @id @default(cuid())
   issueId   String
-  authorId  String
-  body      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  title     String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  issue Issue          @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  items ChecklistItem[]
+
+  @@map("checklists")
+}
+
+model ChecklistItem {
+  id          String    @id @default(cuid())
+  checklistId String
+  text        String
+  isChecked   Boolean   @default(false)
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  checklist Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@map("checklist_items")
+}
+
+model Comment {
+  id          String    @id @default(cuid())
+  issueId     String
+  authorId    String
+  body        String
+  attachments CommentAttachment[]
+  mentions    CommentMention[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   issue  Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
   author User  @relation(fields: [authorId], references: [id])
 
   @@map("comments")
+}
+
+model CommentAttachment {
+  id        String   @id @default(cuid())
+  commentId String
+  fileName  String
+  fileUrl   String
+  fileSize  Int
+  mimeType  String
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@map("comment_attachments")
+}
+
+model CommentMention {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@map("comment_mentions")
+}
+
+model DirectMessage {
+  id          String   @id @default(cuid())
+  senderId    String
+  receiverId  String
+  body        String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sender   User @relation("MessageSender",   fields: [senderId],   references: [id])
+  receiver User @relation("MessageReceiver", fields: [receiverId], references: [id])
+
+  @@index([senderId, receiverId])
+  @@index([receiverId, isRead])
+  @@map("direct_messages")
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  projectId String
+  issueId   String?
+  userId    String
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issue   Issue?  @relation(fields: [issueId], references: [id], onDelete: SetNull)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([projectId, createdAt])
+  @@map("activity_logs")
 }
 
 model Notification {
