@@ -169,7 +169,7 @@ export default function IssueDetailPage() {
           </div>
         </div>
 
-        <IssueComments issueId={issueId} />
+        <IssueComments issueId={issueId} projectMembers={projectMembers} />
       </div>
 
       {/* Admin soft-delete with reason */}

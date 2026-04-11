@@ -2,10 +2,20 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateCommentDto, UpdateCommentDto } from './dto/comment.dto';
+
+// Allowed MIME types for attachments
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+]);
 
 const commentSelect = {
   id: true,
@@ -17,6 +27,24 @@ const commentSelect = {
   author: {
     select: { id: true, fullName: true, email: true },
   },
+  attachments: {
+    select: {
+      id: true,
+      fileName: true,
+      fileUrl: true,
+      fileSize: true,
+      mimeType: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'asc' as const },
+  },
+  mentions: {
+    select: {
+      id: true,
+      userId: true,
+      user: { select: { id: true, fullName: true, email: true } },
+    },
+  },
 };
 
 @Injectable()
@@ -26,7 +54,11 @@ export class CommentsService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  private async assertProjectMembership(issueId: string, userId: string, userRole: string) {
+  private async assertProjectMembership(
+    issueId: string,
+    userId: string,
+    userRole: string,
+  ) {
     const issue = await this.prisma.issue.findUnique({
       where: { id: issueId },
       include: { project: { include: { members: true } } },
@@ -34,34 +66,114 @@ export class CommentsService {
     if (!issue) throw new NotFoundException(`Issue ${issueId} not found`);
     if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       const isMember = issue.project.members.some((m) => m.userId === userId);
-      if (!isMember) throw new ForbiddenException('You are not a member of this project');
+      if (!isMember)
+        throw new ForbiddenException('You are not a member of this project');
     }
     return issue;
   }
 
-  async create(issueId: string, dto: CreateCommentDto, authorId: string, userRole: string) {
-    const issue = await this.assertProjectMembership(issueId, authorId, userRole);
-    const comment = await this.prisma.comment.create({
-      data: { issueId, authorId, body: dto.body },
-      select: commentSelect,
+  async create(
+    issueId: string,
+    dto: CreateCommentDto,
+    authorId: string,
+    userRole: string,
+  ) {
+    const issue = await this.assertProjectMembership(
+      issueId,
+      authorId,
+      userRole,
+    );
+
+    // Validate attachment MIME types
+    if (dto.attachments?.length) {
+      for (const att of dto.attachments) {
+        if (!ALLOWED_MIME_TYPES.has(att.mimeType)) {
+          throw new BadRequestException(
+            `Unsupported file type: ${att.mimeType}. Allowed: JPEG, PNG, GIF, WEBP, PDF`,
+          );
+        }
+      }
+    }
+
+    // Create comment + attachments + mentions in a transaction
+    const comment = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.comment.create({
+        data: { issueId, authorId, body: dto.body },
+        select: { id: true },
+      });
+
+      // Insert attachments (store base64 as the "URL" — no external storage)
+      if (dto.attachments?.length) {
+        await tx.commentAttachment.createMany({
+          data: dto.attachments.map((att) => ({
+            commentId: created.id,
+            fileName: att.fileName,
+            fileUrl: att.fileData, // base64 string
+            fileSize: att.fileSize,
+            mimeType: att.mimeType,
+          })),
+        });
+      }
+
+      // Insert mentions
+      const mentionedIds = dto.mentionedUserIds ?? [];
+      if (mentionedIds.length) {
+        await tx.commentMention.createMany({
+          data: mentionedIds.map((userId) => ({
+            commentId: created.id,
+            userId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      return tx.comment.findUnique({
+        where: { id: created.id },
+        select: commentSelect,
+      });
     });
 
-    // Notify the issue reporter and assignee (excluding the commenter)
+    if (!comment) throw new NotFoundException('Failed to create comment');
+
+    // ── Notifications ─────────────────────────────────────────────────────
+    const author = comment.author;
+    const preview =
+      dto.body.length > 80 ? dto.body.slice(0, 80) + '…' : dto.body;
+
+    // 1) Notify issue reporter + assignee (existing behaviour)
     const recipientIds = new Set<string>();
-    if (issue.reporterId && issue.reporterId !== authorId) recipientIds.add(issue.reporterId);
-    if (issue.assigneeId && issue.assigneeId !== authorId) recipientIds.add(issue.assigneeId);
+    if (issue.reporterId && issue.reporterId !== authorId)
+      recipientIds.add(issue.reporterId);
+    if (issue.assigneeId && issue.assigneeId !== authorId)
+      recipientIds.add(issue.assigneeId);
 
     if (recipientIds.size > 0) {
-      const preview = dto.body.length > 80 ? dto.body.slice(0, 80) + '…' : dto.body;
       await this.notifications.createMany(
         Array.from(recipientIds).map((userId) => ({
           userId,
           type: 'COMMENT_ADDED' as const,
           title: `New comment on "${issue.title}"`,
-          message: `${comment.author.fullName}: ${preview}`,
+          message: `${author.fullName}: ${preview}`,
           issueId: issue.id,
           projectId: issue.projectId,
         })),
+      );
+    }
+
+    // 2) Notify each @mentioned user (always, even if already notified above)
+    const mentionedIds = dto.mentionedUserIds ?? [];
+    if (mentionedIds.length) {
+      await this.notifications.createMany(
+        mentionedIds
+          .filter((uid) => uid !== authorId)
+          .map((userId) => ({
+            userId,
+            type: 'MENTION' as const,
+            title: `You were mentioned in "${issue.title}"`,
+            message: `${author.fullName} mentioned you: ${preview}`,
+            issueId: issue.id,
+            projectId: issue.projectId,
+          })),
       );
     }
 
@@ -77,13 +189,23 @@ export class CommentsService {
     });
   }
 
-  async update(id: string, dto: UpdateCommentDto, userId: string, userRole: string) {
+  async update(
+    id: string,
+    dto: UpdateCommentDto,
+    userId: string,
+    userRole: string,
+  ) {
     const comment = await this.prisma.comment.findUnique({ where: { id } });
     if (!comment) throw new NotFoundException(`Comment ${id} not found`);
     await this.assertProjectMembership(comment.issueId, userId, userRole);
-    if (comment.authorId !== userId && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
+    if (
+      comment.authorId !== userId &&
+      userRole !== 'ADMIN' &&
+      userRole !== 'SUPERADMIN'
+    ) {
       throw new ForbiddenException('You can only edit your own comments');
     }
+    // Only body is editable after creation (attachments are immutable)
     return this.prisma.comment.update({
       where: { id },
       data: { body: dto.body },
@@ -95,7 +217,11 @@ export class CommentsService {
     const comment = await this.prisma.comment.findUnique({ where: { id } });
     if (!comment) throw new NotFoundException(`Comment ${id} not found`);
     await this.assertProjectMembership(comment.issueId, userId, userRole);
-    if (comment.authorId !== userId && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
+    if (
+      comment.authorId !== userId &&
+      userRole !== 'ADMIN' &&
+      userRole !== 'SUPERADMIN'
+    ) {
       throw new ForbiddenException('You can only delete your own comments');
     }
     await this.prisma.comment.delete({ where: { id } });
