@@ -14,6 +14,16 @@ export class DeadlineService {
     private readonly notifications: NotificationsService,
   ) {}
 
+  /** Escape user-controlled strings before interpolating them into HTML email bodies. */
+  private escapeHtml(value: string | null | undefined): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   @Cron(CronExpression.EVERY_HOUR)
   async sendDeadlineReminders() {
     const now = new Date();
@@ -29,14 +39,17 @@ export class DeadlineService {
         reminderSentAt: null,
       },
       include: {
-        assignee: { select: { id: true, email: true, fullName: true } },
-        reporter: { select: { id: true, email: true, fullName: true } },
+        assignee: { select: { id: true, email: true, fullName: true, isActive: true } },
+        reporter: { select: { id: true, email: true, fullName: true, isActive: true } },
         project: { select: { name: true } },
       },
     });
 
     for (const issue of issues) {
-      const recipients = [issue.assignee, issue.reporter].filter(Boolean) as any[];
+      // Filter out null/undefined and deactivated users before sending reminders
+      const recipients = [issue.assignee, issue.reporter].filter(
+        (user): user is NonNullable<typeof issue.assignee> => Boolean(user && user.isActive),
+      );
       const unique = [...new Map(recipients.map(r => [r.id, r])).values()];
 
       for (const user of unique) {
@@ -48,14 +61,18 @@ export class DeadlineService {
           issueId: issue.id,
         });
 
+        const safeName = this.escapeHtml(user.fullName);
+        const safeTitle = this.escapeHtml(issue.title);
+        const safeProject = this.escapeHtml(issue.project.name);
+
         void this.email.send({
           to: user.email,
           subject: `Deadline reminder: "${issue.title}"`,
           html: `
             <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
-              <h2 style="margin-top:0;">⏰ Deadline in 24 hours</h2>
-              <p>Hi ${user.fullName},</p>
-              <p>The issue <strong>"${issue.title}"</strong> in project <strong>${issue.project.name}</strong>
+              <h2 style="margin-top:0;">&#9200; Deadline in 24 hours</h2>
+              <p>Hi ${safeName},</p>
+              <p>The issue <strong>"${safeTitle}"</strong> in project <strong>${safeProject}</strong>
               is due in <strong>24 hours</strong>.</p>
               <a href="https://trackr.ubwengelab.rw"
                  style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">
