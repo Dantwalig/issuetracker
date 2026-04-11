@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import styles from './page.module.css';
 import { DeleteModal } from '@/components/ui/DeleteModal';
 import { recycleBinApi } from '@/lib/recycle-bin-api';
+import { BackButton } from '@/components/ui/BackButton';
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -92,7 +93,7 @@ export default function ProjectDetailPage() {
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
-        <button className={styles.backBtn} onClick={() => router.push('/projects')}>← All projects</button>
+        <BackButton href="/projects" label="All projects" />
         <div className={styles.topActions}>
           {isAdmin && <button className={styles.editBtn} onClick={openEdit}>Edit</button>}
           {isAdmin && <button onClick={() => setShowDelete(true)} style={{background:'none',border:'1px solid var(--danger,#ef4444)',color:'var(--danger,#ef4444)',padding:'0 12px',height:32,borderRadius:'var(--radius)',fontSize:13,cursor:'pointer'}}>Delete</button>}
@@ -193,6 +194,7 @@ export default function ProjectDetailPage() {
           </form>
         </Modal>
       )}
+
       {showDelete && (
         <DeleteModal
           itemName={project.name}

@@ -80,7 +80,7 @@ export function NotificationBell() {
     }
   }
 
-  const unread = countData ?? 0;
+  const unread = countData?.count ?? 0;
   const hasUnread = unread > 0;
 
   return (
