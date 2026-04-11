@@ -4,6 +4,7 @@ import {
   MinLength,
   IsEnum,
   IsOptional,
+  MaxLength,
 } from 'class-validator';
 import { Role } from '@prisma/client';
 
@@ -67,9 +68,12 @@ export class ResetPasswordDto {
 export class UpdateProfileDto {
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   fullName?: string;
 
   @IsOptional()
   @IsString()
+  // 500KB image → ~680KB base64; 700 000 chars is a comfortable ceiling
+  @MaxLength(700_000)
   avatarUrl?: string;
 }

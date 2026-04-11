@@ -105,7 +105,7 @@ export default function ProjectIssuesPage() {
       {!isLoading && filtered.length > 0 && (
         <div className={styles.table}>
           <div className={styles.tableHead}>
-            <span>Title</span><span>Type</span><span>Status</span><span>Priority</span><span>SP</span><span>Reporter</span><span>Updated</span>
+            <span>Title</span><span>Type</span><span>Status</span><span>Priority</span><span>Deadline</span><span>SP</span><span>Reporter</span><span>Updated</span>
           </div>
           {filtered.map((issue) => (
             <IssueRow key={issue.id} issue={issue}

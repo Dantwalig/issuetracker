@@ -54,8 +54,14 @@ export default function ProfilePage() {
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setProfileError('Only JPG and PNG files are allowed');
+      e.target.value = '';
+      return;
+    }
     if (file.size > 500 * 1024) {
       setProfileError('Avatar must be under 500KB');
+      e.target.value = '';
       return;
     }
     const reader = new FileReader();
@@ -96,7 +102,7 @@ export default function ProfilePage() {
           <div className={styles.avatarInfo}>
             <p className={styles.avatarLabel}>Profile photo</p>
             <p className={styles.avatarHint}>Click the avatar to upload. Max 500KB. JPG or PNG.</p>
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={handleAvatarChange} />
+            <input ref={fileRef} type="file" accept="image/jpeg,image/png" hidden onChange={handleAvatarChange} />
           </div>
         </div>
 
