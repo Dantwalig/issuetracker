@@ -12,7 +12,7 @@ type IssueFormData = {
   status?: IssueStatus;
   priority?: IssuePriority;
   storyPoints?: number;
-  deadline?: string;
+  deadline?: string | null;
   assigneeId?: string;
 };
 
@@ -68,7 +68,7 @@ export function IssueForm({
       ...data,
       assigneeId: data.assigneeId?.trim() || undefined,
       storyPoints: data.storyPoints ? Number(data.storyPoints) : undefined,
-      deadline: data.deadline || undefined,
+      deadline: data.deadline || null,
     };
   }
 

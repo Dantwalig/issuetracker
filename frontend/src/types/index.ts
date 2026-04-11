@@ -7,6 +7,12 @@ export type DeletedItemType = 'ISSUE' | 'PROJECT' | 'TEAM';
 export type RecycleBinStatus = 'ACTIVE' | 'RESTORED' | 'PURGED';
 export type DeletionRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
+// Declared before Notification so the interface can reference it
+export type NotificationType =
+  | 'ISSUE_ASSIGNED' | 'COMMENT_ADDED' | 'SPRINT_STARTED' | 'SPRINT_COMPLETED'
+  | 'DELETION_NOTICE' | 'DELETION_REQUEST' | 'DELETION_APPROVED' | 'DELETION_REJECTED'
+  | 'RESTORE_REQUEST' | 'RESTORE_APPROVED' | 'RESTORE_REJECTED' | 'DEADLINE_REMINDER';
+
 export interface User {
   id: string;
   email: string;
@@ -127,7 +133,7 @@ export interface DeletionRequest {
 export interface Notification {
   id: string;
   userId: string;
-  type: string;
+  type: NotificationType;
   title: string;
   message: string;
   isRead: boolean;
@@ -143,7 +149,7 @@ export interface CreateIssuePayload {
   status?: IssueStatus;
   priority?: IssuePriority;
   storyPoints?: number;
-  deadline?: string;
+  deadline?: string | null;
   assigneeId?: string;
   projectId: string;
 }
@@ -183,8 +189,3 @@ export interface Comment {
 
 export interface CreateCommentPayload { body: string; }
 export type UpdateCommentPayload = CreateCommentPayload;
-
-export type NotificationType =
-  | 'ISSUE_ASSIGNED' | 'COMMENT_ADDED' | 'SPRINT_STARTED' | 'SPRINT_COMPLETED'
-  | 'DELETION_NOTICE' | 'DELETION_REQUEST' | 'DELETION_APPROVED' | 'DELETION_REJECTED'
-  | 'RESTORE_REQUEST' | 'RESTORE_APPROVED' | 'RESTORE_REJECTED' | 'DEADLINE_REMINDER';
