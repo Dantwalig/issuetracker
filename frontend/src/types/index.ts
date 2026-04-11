@@ -3,6 +3,9 @@ export type IssueType = 'TASK' | 'BUG' | 'STORY';
 export type IssueStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 export type IssuePriority = 'LOW' | 'MEDIUM' | 'HIGH';
 export type SprintStatus = 'DRAFT' | 'ACTIVE' | 'COMPLETED';
+export type DeletedItemType = 'ISSUE' | 'PROJECT' | 'TEAM';
+export type RecycleBinStatus = 'ACTIVE' | 'RESTORED' | 'PURGED';
+export type DeletionRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface User {
   id: string;
@@ -10,6 +13,7 @@ export interface User {
   fullName: string;
   role: Role;
   isActive: boolean;
+  avatarUrl?: string | null;
   mustChangePassword?: boolean;
   createdAt: string;
 }
@@ -29,6 +33,7 @@ export interface Team {
   id: string;
   name: string;
   description?: string;
+  createdById: string;
   createdAt: string;
   updatedAt: string;
   members: TeamMemberEntry[];
@@ -44,6 +49,7 @@ export interface Project {
   name: string;
   description?: string;
   teamId?: string;
+  createdById: string;
   team?: { id: string; name: string };
   createdAt: string;
   updatedAt: string;
@@ -69,8 +75,11 @@ export interface Issue {
   type: IssueType;
   status: IssueStatus;
   priority: IssuePriority;
+  storyPoints?: number | null;
+  deadline?: string | null;
   assigneeId?: string;
   reporterId: string;
+  createdById: string;
   projectId: string;
   sprintId?: string | null;
   backlogOrder?: number | null;
@@ -87,12 +96,54 @@ export interface AuthTokens {
   user: Pick<User, 'id' | 'email' | 'fullName' | 'role' | 'mustChangePassword'>;
 }
 
+export interface DeletedItem {
+  id: string;
+  itemType: DeletedItemType;
+  itemId: string;
+  itemSnapshot: any;
+  deletedById: string;
+  reason: string;
+  status: RecycleBinStatus;
+  deletedAt: string;
+  expiresAt: string;
+  restoredAt?: string | null;
+  deletedBy: { id: string; fullName: string; email: string };
+}
+
+export interface DeletionRequest {
+  id: string;
+  issueId: string;
+  requestedById: string;
+  reason: string;
+  status: DeletionRequestStatus;
+  responseReason?: string | null;
+  respondedById?: string | null;
+  respondedAt?: string | null;
+  createdAt: string;
+  issue: { id: string; title: string; projectId: string };
+  requestedBy: { id: string; fullName: string; email: string };
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  issueId?: string | null;
+  projectId?: string | null;
+  createdAt: string;
+}
+
 export interface CreateIssuePayload {
   title: string;
   description?: string;
   type?: IssueType;
   status?: IssueStatus;
   priority?: IssuePriority;
+  storyPoints?: number;
+  deadline?: string;
   assigneeId?: string;
   projectId: string;
 }
@@ -130,26 +181,10 @@ export interface Comment {
   author: IssueUser;
 }
 
-export interface CreateCommentPayload {
-  body: string;
-}
-
+export interface CreateCommentPayload { body: string; }
 export type UpdateCommentPayload = CreateCommentPayload;
 
 export type NotificationType =
-  | 'ISSUE_ASSIGNED'
-  | 'COMMENT_ADDED'
-  | 'SPRINT_STARTED'
-  | 'SPRINT_COMPLETED';
-
-export interface Notification {
-  id: string;
-  userId: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  isRead: boolean;
-  issueId?: string | null;
-  projectId?: string | null;
-  createdAt: string;
-}
+  | 'ISSUE_ASSIGNED' | 'COMMENT_ADDED' | 'SPRINT_STARTED' | 'SPRINT_COMPLETED'
+  | 'DELETION_NOTICE' | 'DELETION_REQUEST' | 'DELETION_APPROVED' | 'DELETION_REJECTED'
+  | 'RESTORE_REQUEST' | 'RESTORE_APPROVED' | 'RESTORE_REJECTED' | 'DEADLINE_REMINDER';

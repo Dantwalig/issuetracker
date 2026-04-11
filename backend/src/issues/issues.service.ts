@@ -19,6 +19,9 @@ const issueSelect = {
   projectId: true,
   sprintId: true,
   backlogOrder: true,
+  storyPoints: true,
+  deadline: true,
+  createdById: true,
   createdAt: true,
   updatedAt: true,
   reporter: {
@@ -69,9 +72,12 @@ export class IssuesService {
         type: dto.type,
         status: dto.status,
         priority: dto.priority,
+        storyPoints: dto.storyPoints,
+        deadline: dto.deadline ? new Date(dto.deadline) : undefined,
         assigneeId: dto.assigneeId,
         projectId: dto.projectId!,
         reporterId,
+        createdById: reporterId,
         backlogOrder,
       },
       select: issueSelect,
@@ -140,9 +146,12 @@ export class IssuesService {
       }
     }
 
+    const updateData: any = { ...dto };
+    if (dto.deadline) updateData.deadline = new Date(dto.deadline);
+    else if (dto.deadline === '') updateData.deadline = null;
     const issue = await this.prisma.issue.update({
       where: { id },
-      data: dto,
+      data: updateData,
       select: issueSelect,
     });
 

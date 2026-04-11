@@ -6,7 +6,7 @@ export const notificationsApi = {
     api.get<Notification[]>('/notifications').then((r) => r.data),
 
   unreadCount: () =>
-    api.get<{ count: number }>('/notifications/unread-count').then((r) => r.data),
+    api.get<number>('/notifications/unread-count').then((r) => r.data),
 
   markOneRead: (id: string) =>
     api.patch(`/notifications/${id}/read`),

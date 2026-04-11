@@ -12,6 +12,7 @@ import { StatusBadge, PriorityBadge, TypeBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { format } from 'date-fns';
 import styles from './page.module.css';
+import { BackButton } from '@/components/ui/BackButton';
 
 export default function SprintDetailPage() {
   const { id: projectId, sprintId } = useParams<{
@@ -163,6 +164,7 @@ export default function SprintDetailPage() {
 
   return (
     <div className={styles.page}>
+      <BackButton href={`/projects/${projectId}/sprints`} label="Back to sprints" />
       {/* Breadcrumb */}
       <div className={styles.topBar}>
         <nav className={styles.breadcrumb}>
@@ -200,6 +202,10 @@ export default function SprintDetailPage() {
           <h1 className={styles.sprintName}>{sprint.name}</h1>
           <div className={styles.sprintMeta}>
             <span>{sprintIssues.length} issue{sprintIssues.length !== 1 ? 's' : ''}</span>
+            {sprintIssues.some(i => i.storyPoints != null) && (
+              <><span className={styles.metaDot}>·</span>
+              <span>{sprintIssues.reduce((sum, i) => sum + (i.storyPoints ?? 0), 0)} SP total</span></>
+            )}
             {sprint.startDate && (
               <>
                 <span className={styles.metaDot}>·</span>
@@ -367,6 +373,11 @@ function IssueRow({
       onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
     >
       <span className={styles.issueTitle}>{issue.title}</span>
+      {issue.storyPoints != null && (
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-dim)', borderRadius: 99, padding: '1px 7px', flexShrink: 0 }}>
+          {issue.storyPoints} SP
+        </span>
+      )}
       <span><TypeBadge type={issue.type} /></span>
       <span><PriorityBadge priority={issue.priority} /></span>
       <span><StatusBadge status={issue.status} /></span>

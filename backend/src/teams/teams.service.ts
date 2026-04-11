@@ -11,6 +11,7 @@ const teamSelect = {
   id: true,
   name: true,
   description: true,
+  createdById: true,
   createdAt: true,
   updatedAt: true,
   members: {
@@ -25,10 +26,10 @@ const teamSelect = {
 export class TeamsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateTeamDto) {
+  async create(dto: CreateTeamDto, createdById: string) {
     const existing = await this.prisma.team.findUnique({ where: { name: dto.name } });
     if (existing) throw new ConflictException(`Team "${dto.name}" already exists`);
-    return this.prisma.team.create({ data: dto, select: teamSelect });
+    return this.prisma.team.create({ data: { ...dto, createdById }, select: teamSelect });
   }
 
   async findAll() {

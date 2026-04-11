@@ -23,8 +23,8 @@ export class ProjectsController {
 
   @Post()
   @UseGuards(AdminGuard)
-  create(@Body() dto: CreateProjectDto) {
-    return this.projectsService.create(dto);
+  create(@Body() dto: CreateProjectDto, @CurrentUser() user: { id: string; role: string }) {
+    return this.projectsService.create(dto, user.id);
   }
 
   @Get()

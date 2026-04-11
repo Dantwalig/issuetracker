@@ -10,6 +10,8 @@ import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
 import styles from './page.module.css';
+import { DeleteModal } from '@/components/ui/DeleteModal';
+import { recycleBinApi } from '@/lib/recycle-bin-api';
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +28,7 @@ export default function ProjectDetailPage() {
   const [editTeamId, setEditTeamId] = useState('');
   const [editError, setEditError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
 
   const { data: project, isLoading, isError } = useQuery({
     queryKey: ['project', id],
@@ -88,10 +91,13 @@ export default function ProjectDetailPage() {
 
   return (
     <div className={styles.page}>
+      <div>
+        <BackButton href="/projects" label="All projects" />
       <div className={styles.topBar}>
         <button className={styles.backBtn} onClick={() => router.push('/projects')}>← All projects</button>
         <div className={styles.topActions}>
           {isAdmin && <button className={styles.editBtn} onClick={openEdit}>Edit</button>}
+          {isAdmin && <button onClick={() => setShowDelete(true)} style={{background:'none',border:'1px solid var(--danger,#ef4444)',color:'var(--danger,#ef4444)',padding:'0 12px',height:32,borderRadius:'var(--radius)',fontSize:13,cursor:'pointer'}}>Delete</button>}
           <button className={styles.issuesBtn} onClick={() => router.push(`/projects/${id}/issues`)}>
             View issues →
           </button>
@@ -188,6 +194,17 @@ export default function ProjectDetailPage() {
             </div>
           </form>
         </Modal>
+      )}
+      {showDelete && (
+        <DeleteModal
+          itemName={project.name}
+          itemType="project"
+          onConfirm={async (reason) => {
+            await recycleBinApi.deleteProject(id, reason);
+            router.push('/projects');
+          }}
+          onCancel={() => setShowDelete(false)}
+        />
       )}
     </div>
   );

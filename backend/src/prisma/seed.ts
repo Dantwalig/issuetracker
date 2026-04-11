@@ -33,6 +33,7 @@ async function main() {
     create: {
       name: 'Engineering',
       description: 'Core engineering team',
+      createdById: admin.id,
       members: { create: [{ userId: admin.id }, { userId: member.id }] },
     },
   });
@@ -48,6 +49,7 @@ async function main() {
         name: 'Issue Tracker MVP',
         description: 'Internal issue tracker project',
         teamId: team.id,
+        createdById: admin.id,
         members: { create: [{ userId: admin.id }, { userId: member.id }] },
       },
     });
@@ -80,6 +82,7 @@ async function main() {
           status: 'IN_PROGRESS',
           priority: 'HIGH',
           reporterId: admin.id,
+          createdById: admin.id,
           assigneeId: member.id,
           projectId: project.id,
         },
@@ -90,6 +93,7 @@ async function main() {
           status: 'TODO',
           priority: 'HIGH',
           reporterId: member.id,
+          createdById: member.id,
           assigneeId: admin.id,
           projectId: project.id,
         },
@@ -100,6 +104,7 @@ async function main() {
           status: 'TODO',
           priority: 'MEDIUM',
           reporterId: admin.id,
+          createdById: admin.id,
           projectId: project.id,
         },
       ],
