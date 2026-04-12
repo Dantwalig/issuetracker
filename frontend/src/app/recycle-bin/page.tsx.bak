@@ -101,7 +101,7 @@ export default function RecycleBinPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['recycle-bin'] }); setConfirmId(null); },
   });
 
-  const filtered = filter === 'ALL' ? items : items.filter(i => i.type === filter);
+  const filtered = filter === 'ALL' ? items : items.filter(i => i.itemType === filter);
   const canHardDelete = isAdmin(user);
 
   const filterOptions: { key: DeletedItemType | 'ALL'; label: string; icon: React.ReactNode }[] = [
@@ -131,7 +131,7 @@ export default function RecycleBinPage() {
             <span className={styles.filterIcon}>{icon}</span>
             {label}
             <span className={styles.filterCount}>
-              {key === 'ALL' ? items.length : items.filter(i => i.type === key).length}
+              {key === 'ALL' ? items.length : items.filter(i => i.itemType === key).length}
             </span>
           </button>
         ))}
@@ -147,19 +147,20 @@ export default function RecycleBinPage() {
 
       <div className={styles.list}>
         {filtered.map(item => {
-          const name = item.itemTitle ?? item.itemId;
+          const snap = item.itemSnapshot as any;
+          const name = snap?.title ?? snap?.name ?? item.itemId;
           const left = daysLeft(item.expiresAt);
           return (
             <div key={item.id} className={styles.card}>
               <div className={styles.cardLeft}>
-                <span className={styles.typeIcon}><TypeIcon type={item.type} /></span>
+                <span className={styles.typeIcon}><TypeIcon type={item.itemType} /></span>
                 <div className={styles.info}>
                   <p className={styles.name}>{name}</p>
                   <p className={styles.meta}>
-                    {item.type} · Deleted by <strong>{item.deletedBy.fullName}</strong>
+                    {item.itemType} · Deleted by <strong>{item.deletedBy.fullName}</strong>
                     {' '}· {formatDistanceToNow(new Date(item.deletedAt), { addSuffix: true })}
                   </p>
-                  {item.projectName && <p className={styles.reason}>Project: {item.projectName}</p>}
+                  <p className={styles.reason}>Reason: {item.reason}</p>
                   <p className={`${styles.expiry} ${left <= 3 ? styles.expiryUrgent : ''}`}>
                     {left === 0 ? 'Expires today' : `Expires in ${left} day${left !== 1 ? 's' : ''}`}
                     {' '}· {format(new Date(item.expiresAt), 'MMM d, yyyy')}
