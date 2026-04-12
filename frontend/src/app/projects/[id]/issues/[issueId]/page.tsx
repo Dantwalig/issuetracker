@@ -20,6 +20,7 @@ import { recycleBinApi } from '@/lib/recycle-bin-api';
 import { deletionRequestsApi } from '@/lib/deletion-requests-api';
 import { IssueUser } from '@/types';
 import { format } from 'date-fns';
+import { useShortcut } from '@/lib/keyboard-shortcuts';
 import styles from './page.module.css';
 
 export default function IssueDetailPage() {
@@ -95,7 +96,37 @@ export default function IssueDetailPage() {
 
   const projectMembers: IssueUser[] = (project?.members ?? []).map((m) => m.user);
 
-  return (
+  // Keyboard shortcuts for issue detail
+  useShortcut('issue-detail:edit', {
+    key: 'e',
+    description: 'Edit issue',
+    group: 'Issue Detail',
+    action: () => { if (showEditBtn) setShowEdit(true); },
+    disabled: !showEditBtn,
+  });
+  useShortcut('issue-detail:share', {
+    key: 's',
+    description: 'Share issue',
+    group: 'Issue Detail',
+    action: () => setShowShare(true),
+  });
+  useShortcut('issue-detail:back', {
+    key: 'Backspace',
+    description: 'Back to issues list',
+    group: 'Issue Detail',
+    action: () => router.push(`/projects/${projectId}/issues`),
+  });
+  useShortcut('issue-detail:escape', {
+    key: 'Escape',
+    description: 'Close dialog / cancel',
+    group: 'Global',
+    action: () => {
+      if (showEdit) { setShowEdit(false); return; }
+      if (showShare) { setShowShare(false); return; }
+      if (showDeleteModal) { setShowDeleteModal(false); return; }
+    },
+    disabled: !showEdit && !showShare && !showDeleteModal,
+  });
     <div className={styles.page}>
       <BackButton href={`/projects/${projectId}/issues`} label="Back to issues" />
 

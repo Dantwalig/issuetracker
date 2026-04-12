@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { usersApi } from '@/lib/users-api';
 import { messagesApi, DirectMessage, Conversation, DMUser } from '@/lib/messages-api';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
+import { useShortcut } from '@/lib/keyboard-shortcuts';
 import styles from './page.module.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -148,6 +149,32 @@ export default function MessagesPage() {
       qc.invalidateQueries({ queryKey: ['dm-conversations'] });
     }
   }, [messages.length, activePartnerId]);
+
+  // Keyboard shortcuts
+  useShortcut('messages:new', {
+    key: 'n',
+    description: 'New conversation',
+    group: 'Messages',
+    action: () => setShowPicker(true),
+    disabled: showPicker,
+  });
+  useShortcut('messages:escape', {
+    key: 'Escape',
+    description: 'Close picker / deselect',
+    group: 'Global',
+    action: () => {
+      if (showPicker) { setShowPicker(false); return; }
+      setActivePartnerId(null);
+    },
+    disabled: !showPicker && !activePartnerId,
+  });
+  useShortcut('messages:focus-reply', {
+    key: 'r',
+    description: 'Focus reply box',
+    group: 'Messages',
+    action: () => textareaRef.current?.focus(),
+    disabled: !activePartnerId,
+  });
 
   // ── Send mutation ─────────────────────────────────────────────────────────
   const sendMutation = useMutation({

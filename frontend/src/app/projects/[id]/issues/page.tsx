@@ -10,6 +10,7 @@ import { StatusBadge, PriorityBadge, TypeBadge, DeadlineBadge } from '@/componen
 import { Modal } from '@/components/ui/Modal';
 import { IssueForm } from '@/components/issues/IssueForm';
 import { formatDistanceToNow } from 'date-fns';
+import { useShortcut } from '@/lib/keyboard-shortcuts';
 import styles from './page.module.css';
 
 const STATUS_FILTERS: { label: string; value: IssueStatus | 'ALL' }[] = [
@@ -47,6 +48,45 @@ export default function ProjectIssuesPage() {
 
   // Derive project members as IssueUser[] for the assignee dropdown
   const projectMembers: IssueUser[] = (project?.members ?? []).map((m) => m.user);
+
+  // Keyboard shortcuts
+  useShortcut('issues:create', {
+    key: 'n',
+    description: 'Create new issue',
+    group: 'Issues',
+    action: () => setShowCreate(true),
+  });
+  useShortcut('issues:create-escape', {
+    key: 'Escape',
+    description: 'Close dialog / cancel',
+    group: 'Global',
+    action: () => setShowCreate(false),
+    disabled: !showCreate,
+  });
+  useShortcut('issues:filter-all', {
+    key: 'a',
+    description: 'Show all issues',
+    group: 'Issues',
+    action: () => setStatusFilter('ALL'),
+  });
+  useShortcut('issues:filter-todo', {
+    key: '1',
+    description: 'Filter: To Do',
+    group: 'Issues',
+    action: () => setStatusFilter('TODO'),
+  });
+  useShortcut('issues:filter-progress', {
+    key: '2',
+    description: 'Filter: In Progress',
+    group: 'Issues',
+    action: () => setStatusFilter('IN_PROGRESS'),
+  });
+  useShortcut('issues:filter-done', {
+    key: '3',
+    description: 'Filter: Done',
+    group: 'Issues',
+    action: () => setStatusFilter('DONE'),
+  });
 
   async function handleCreate(data: any) {
     setCreating(true);

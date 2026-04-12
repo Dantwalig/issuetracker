@@ -3,16 +3,57 @@
 import { useAuth } from '@/lib/auth-context';
 import styles from './Sidebar.module.css';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { messagesApi } from '@/lib/messages-api';
+import { useShortcut } from '@/lib/keyboard-shortcuts';
 
 export function Sidebar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const isPrivileged = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
   const active = (path: string) =>
     `${styles.navItem} ${pathname.startsWith(path) ? styles.active : ''}`;
+
+  const { data: dmUnread = 0 } = useQuery({
+    queryKey: ['dm-unread'],
+    queryFn: messagesApi.unreadCount,
+    refetchInterval: 10000,
+    enabled: !!user,
+  });
+
+  // Global navigation shortcuts
+  useShortcut('nav:projects', {
+    key: 'p',
+    description: 'Go to Projects',
+    group: 'Navigation',
+    action: () => router.push('/projects'),
+  });
+  useShortcut('nav:teams', {
+    key: 't',
+    description: 'Go to Teams',
+    group: 'Navigation',
+    action: () => router.push('/teams'),
+  });
+  useShortcut('nav:messages', {
+    key: 'm',
+    description: 'Go to Messages',
+    group: 'Navigation',
+    action: () => router.push('/messages'),
+  });
+  useShortcut('nav:notifications', {
+    key: 'i',
+    description: 'Go to Notifications',
+    group: 'Navigation',
+    action: () => router.push('/notifications'),
+  });
+  useShortcut('nav:profile', {
+    key: 'u',
+    description: 'Go to Profile',
+    group: 'Navigation',
+    action: () => router.push('/profile'),
+  });
 
   const { data: dmUnread = 0 } = useQuery({
     queryKey: ['dm-unread'],
