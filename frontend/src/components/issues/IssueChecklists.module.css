@@ -1,0 +1,391 @@
+.section {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.addChecklistBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-size: 12px;
+  font-family: var(--font);
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.addChecklistBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* New checklist form */
+.newChecklistForm {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.newChecklistInput {
+  flex: 1;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-1);
+  font-size: 13px;
+  padding: 7px 10px;
+  font-family: var(--font);
+  transition: border-color 0.15s;
+}
+
+.newChecklistInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.newChecklistInput::placeholder {
+  color: var(--text-3);
+}
+
+.confirmBtn {
+  padding: 7px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font);
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+
+.confirmBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cancelBtn {
+  padding: 7px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: border-color 0.15s;
+}
+
+.cancelBtn:hover {
+  border-color: var(--border-2);
+}
+
+/* Checklists container */
+.checklists {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Individual checklist card */
+.checklist {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.checklistHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-3);
+}
+
+.checklistTitleInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-1);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font);
+  padding: 0;
+  min-width: 0;
+}
+
+.checklistTitleInput:focus {
+  outline: none;
+  border-bottom: 1px solid var(--accent);
+}
+
+.checklistTitle {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Progress bar */
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 4px;
+}
+
+.progressBar {
+  width: 80px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.25s ease;
+}
+
+.progressText {
+  font-size: 11px;
+  color: var(--text-3);
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+.iconBtn {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  color: var(--text-3);
+  font-size: 13px;
+  border-radius: 3px;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.iconBtn:hover {
+  color: var(--text-1);
+  background: var(--bg-2);
+}
+
+.deleteIconBtn:hover {
+  color: var(--red);
+  background: transparent;
+}
+
+/* Items list */
+.items {
+  padding: 8px 0;
+}
+
+.emptyItems {
+  font-size: 12px;
+  color: var(--text-3);
+  font-style: italic;
+  padding: 6px 14px 4px;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 14px;
+  transition: background 0.1s;
+  group: true;
+}
+
+.item:hover {
+  background: var(--bg-3);
+}
+
+.checkbox {
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid var(--border-2);
+  border-radius: 3px;
+  background: var(--bg-1);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 1px;
+  appearance: none;
+  -webkit-appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+}
+
+.checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.checkbox:checked::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 5px;
+  border-left: 1.5px solid #fff;
+  border-bottom: 1.5px solid #fff;
+  transform: rotate(-45deg) translate(0px, -1px);
+}
+
+.itemText {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.5;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.itemTextDone {
+  text-decoration: line-through;
+  color: var(--text-3);
+}
+
+.itemTextInput {
+  flex: 1;
+  background: var(--bg-1);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--text-1);
+  font-size: 13px;
+  font-family: var(--font);
+  padding: 2px 6px;
+  min-width: 0;
+}
+
+.itemTextInput:focus {
+  outline: none;
+}
+
+.itemActions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.item:hover .itemActions {
+  opacity: 1;
+}
+
+/* Add item row */
+.addItemRow {
+  padding: 4px 14px 10px;
+}
+
+.addItemBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--text-3);
+  cursor: pointer;
+  font-family: var(--font);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s;
+}
+
+.addItemBtn:hover {
+  color: var(--accent);
+}
+
+.addItemForm {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.addItemInput {
+  flex: 1;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-1);
+  font-size: 13px;
+  font-family: var(--font);
+  padding: 5px 8px;
+  transition: border-color 0.15s;
+}
+
+.addItemInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.addItemInput::placeholder {
+  color: var(--text-3);
+}
+
+.addItemConfirm {
+  padding: 5px 12px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font);
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+
+.addItemConfirm:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.addItemCancel {
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--font);
+}

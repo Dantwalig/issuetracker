@@ -11,6 +11,8 @@ import { StatusBadge, PriorityBadge, TypeBadge, DeadlineBadge } from '@/componen
 import { Modal } from '@/components/ui/Modal';
 import { IssueForm } from '@/components/issues/IssueForm';
 import { IssueComments } from '@/components/issues/IssueComments';
+import { IssueChecklists } from '@/components/issues/IssueChecklists';
+import { ShareModal } from '@/components/issues/ShareModal';
 import { DeleteModal } from '@/components/ui/DeleteModal';
 import { BackButton } from '@/components/ui/BackButton';
 import { recycleBinApi } from '@/lib/recycle-bin-api';
@@ -33,6 +35,7 @@ export default function IssueDetailPage() {
   const [requestError, setRequestError] = useState('');
   const [requestSuccess, setRequestSuccess] = useState('');
   const [requestLoading, setRequestLoading] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -106,6 +109,7 @@ export default function IssueDetailPage() {
           <span className={styles.breadCurrent}>{issue.id.slice(0, 8)}</span>
         </nav>
         <div className={styles.topActions}>
+          <button className={styles.editBtn} onClick={() => setShowShare(true)}>Share</button>
           {showEditBtn && <button className={styles.editBtn} onClick={() => setShowEdit(true)}>Edit</button>}
           {showStatusOnly && <button className={styles.editBtn} onClick={() => setShowEdit(true)}>Update status</button>}
           {showAdminDelete && (
@@ -169,6 +173,7 @@ export default function IssueDetailPage() {
           </div>
         </div>
 
+        <IssueChecklists issueId={issueId} />
         <IssueComments issueId={issueId} projectMembers={projectMembers} />
       </div>
 
@@ -232,6 +237,17 @@ export default function IssueDetailPage() {
             )}
           </div>
         </Modal>
+      )}
+
+      {/* Share modal */}
+      {showShare && (
+        <ShareModal
+          issue={issue}
+          onClose={() => setShowShare(false)}
+          onTokenChange={(token) => {
+            qc.invalidateQueries({ queryKey: ['issue', projectId, issueId] });
+          }}
+        />
       )}
 
       {/* Edit modal */}
