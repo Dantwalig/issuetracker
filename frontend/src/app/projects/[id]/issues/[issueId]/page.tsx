@@ -127,6 +127,8 @@ export default function IssueDetailPage() {
     },
     disabled: !showEdit && !showShare && !showDeleteModal,
   });
+
+  return (
     <div className={styles.page}>
       <BackButton href={`/projects/${projectId}/issues`} label="Back to issues" />
 
