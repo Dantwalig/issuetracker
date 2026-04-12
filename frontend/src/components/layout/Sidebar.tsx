@@ -24,6 +24,12 @@ export function Sidebar() {
   });
 
   // Global navigation shortcuts
+  useShortcut('nav:my-work', {
+    key: 'h',
+    description: 'Go to My Work',
+    group: 'Navigation',
+    action: () => router.push('/my-work'),
+  });
   useShortcut('nav:projects', {
     key: 'p',
     description: 'Go to Projects',
@@ -64,6 +70,7 @@ export function Sidebar() {
         </div>
 
         <nav className={styles.nav}>
+          <Link href="/my-work" className={active('/my-work')}><MyWorkIcon /> My Work</Link>
           <Link href="/teams" className={active('/teams')}><TeamsIcon /> Teams</Link>
           <Link href="/projects" className={active('/projects')}><ProjectsIcon /> Projects</Link>
           <Link href="/notifications" className={active('/notifications')}><BellIcon /> Notifications</Link>
@@ -106,6 +113,9 @@ export function Sidebar() {
   );
 }
 
+function MyWorkIcon() {
+  return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/><path d="M5.5 8.5l1.5 1.5 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+}
 function TeamsIcon() {
   return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="5.5" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="10.5" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.5"/><path d="M1 13c0-2 2-3.5 4.5-3.5S10 11 10 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M10 9.5c2.5 0 4.5 1.5 4.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>;
 }

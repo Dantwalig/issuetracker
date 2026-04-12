@@ -106,11 +106,10 @@ export interface Issue {
 
 export interface DeletedItem {
   id: string;
-  type: DeletedItemType;
+  itemType: DeletedItemType;
   itemId: string;
-  itemTitle: string;
-  projectId?: string | null;
-  projectName?: string | null;
+  itemSnapshot: Record<string, unknown>;
+  reason: string;
   status: RecycleBinStatus;
   deletedAt: string;
   expiresAt: string;
