@@ -73,12 +73,12 @@ export function ShareModal({ issue, onClose, onTokenChange }: Props) {
       const ctx = canvas.getContext('2d')!;
 
       // ── Helpers ─────────────────────────────────────────────────────────
-      function wrapText(
+      const wrapText = (
         text: string,
         maxWidth: number,
         fontSize: number,
         bold = false,
-      ): string[] {
+      ): string[] => {
         ctx.font = `${bold ? '600' : '400'} ${fontSize}px "DM Sans", system-ui, sans-serif`;
         const words = text.split(' ');
         const lines: string[] = [];
@@ -94,16 +94,16 @@ export function ShareModal({ issue, onClose, onTokenChange }: Props) {
         }
         if (line) lines.push(line);
         return lines;
-      }
+      };
 
-      function badge(
+      const badge = (
         ctx: CanvasRenderingContext2D,
         text: string,
         x: number,
         y: number,
         bg: string,
         fg: string,
-      ) {
+      ) => {
         ctx.font = '500 12px "DM Sans", system-ui, sans-serif';
         const tw = ctx.measureText(text).width;
         const bw = tw + 16;
@@ -115,7 +115,7 @@ export function ShareModal({ issue, onClose, onTokenChange }: Props) {
         ctx.fillStyle = fg;
         ctx.fillText(text, x + 8, y);
         return bw + 8;
-      }
+      };
 
       // ── Measure content height ───────────────────────────────────────────
       const titleLines = wrapText(

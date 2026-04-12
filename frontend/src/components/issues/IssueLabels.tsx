@@ -30,10 +30,13 @@ export function IssueLabels({ issueId, projectId }: Props) {
   const assignedIds = new Set(issueLabels.map((il) => il.labelId));
 
   const toggleMutation = useMutation({
-    mutationFn: ({ labelId, assigned }: { labelId: string; assigned: boolean }) =>
-      assigned
-        ? labelsApi.removeFromIssue(issueId, labelId)
-        : labelsApi.addToIssue(issueId, labelId),
+    mutationFn: async ({ labelId, assigned }: { labelId: string; assigned: boolean }): Promise<void> => {
+      if (assigned) {
+        await labelsApi.removeFromIssue(issueId, labelId);
+      } else {
+        await labelsApi.addToIssue(issueId, labelId);
+      }
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['issue-labels', issueId] });
     },

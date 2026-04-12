@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { User, AuthTokens } from '@/types';
+import { User } from '@/types';
 import { useRouter } from 'next/navigation';
 
 interface AuthContextValue {
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function login(email: string, password: string) {
-    const { data } = await api.post<AuthTokens>('/auth/login', {
+    const { data } = await api.post<{ accessToken: string; refreshToken: string; user: User & { mustChangePassword?: boolean } }>('/auth/login', {
       email,
       password,
     });
