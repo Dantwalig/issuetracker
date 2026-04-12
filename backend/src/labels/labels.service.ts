@@ -5,11 +5,15 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ActivityService } from '../activity/activity.service';
 import { CreateLabelDto, UpdateLabelDto } from './dto/label.dto';
 
 @Injectable()
 export class LabelsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activity: ActivityService,
+  ) {}
 
   private async assertProjectMember(projectId: string, userId: string, role: string) {
     const project = await this.prisma.project.findUnique({
@@ -101,6 +105,15 @@ export class LabelsService {
       create: { issueId, labelId },
       update: {},
     });
+
+    this.activity.log({
+      projectId: issue.projectId,
+      userId,
+      action: 'LABEL_ADDED',
+      issueId: issue.id,
+      detail: `${label.name} on "${issue.title}"`,
+    });
+
     return { issueId, labelId };
   }
 
@@ -114,6 +127,17 @@ export class LabelsService {
       const isMember = issue.project.members.some((m) => m.userId === userId);
       if (!isMember) throw new ForbiddenException('You are not a member of this project');
     }
+
+    const label = await this.prisma.label.findUnique({ where: { id: labelId } });
+
     await this.prisma.issueLabel.deleteMany({ where: { issueId, labelId } });
+
+    this.activity.log({
+      projectId: issue.projectId,
+      userId,
+      action: 'LABEL_REMOVED',
+      issueId: issue.id,
+      detail: label ? `${label.name} from "${issue.title}"` : issue.title,
+    });
   }
 }

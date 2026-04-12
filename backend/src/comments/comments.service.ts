@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ActivityService } from '../activity/activity.service';
 import { CreateCommentDto, UpdateCommentDto } from './dto/comment.dto';
 
-// Allowed MIME types for attachments
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -52,6 +52,7 @@ export class CommentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly activity: ActivityService,
   ) {}
 
   private async assertProjectMembership(
@@ -78,13 +79,8 @@ export class CommentsService {
     authorId: string,
     userRole: string,
   ) {
-    const issue = await this.assertProjectMembership(
-      issueId,
-      authorId,
-      userRole,
-    );
+    const issue = await this.assertProjectMembership(issueId, authorId, userRole);
 
-    // Validate attachment MIME types
     if (dto.attachments?.length) {
       for (const att of dto.attachments) {
         if (!ALLOWED_MIME_TYPES.has(att.mimeType)) {
@@ -95,27 +91,24 @@ export class CommentsService {
       }
     }
 
-    // Create comment + attachments + mentions in a transaction
     const comment = await this.prisma.$transaction(async (tx) => {
       const created = await tx.comment.create({
         data: { issueId, authorId, body: dto.body },
         select: { id: true },
       });
 
-      // Insert attachments (store base64 as the "URL" — no external storage)
       if (dto.attachments?.length) {
         await tx.commentAttachment.createMany({
           data: dto.attachments.map((att) => ({
             commentId: created.id,
             fileName: att.fileName,
-            fileUrl: att.fileData, // base64 string
+            fileUrl: att.fileData,
             fileSize: att.fileSize,
             mimeType: att.mimeType,
           })),
         });
       }
 
-      // Insert mentions
       const mentionedIds = dto.mentionedUserIds ?? [];
       if (mentionedIds.length) {
         await tx.commentMention.createMany({
@@ -135,12 +128,9 @@ export class CommentsService {
 
     if (!comment) throw new NotFoundException('Failed to create comment');
 
-    // ── Notifications ─────────────────────────────────────────────────────
     const author = comment.author;
-    const preview =
-      dto.body.length > 80 ? dto.body.slice(0, 80) + '…' : dto.body;
+    const preview = dto.body.length > 80 ? dto.body.slice(0, 80) + '…' : dto.body;
 
-    // 1) Notify issue reporter + assignee (existing behaviour)
     const recipientIds = new Set<string>();
     if (issue.reporterId && issue.reporterId !== authorId)
       recipientIds.add(issue.reporterId);
@@ -160,7 +150,6 @@ export class CommentsService {
       );
     }
 
-    // 2) Notify each @mentioned user (always, even if already notified above)
     const mentionedIds = dto.mentionedUserIds ?? [];
     if (mentionedIds.length) {
       await this.notifications.createMany(
@@ -177,6 +166,14 @@ export class CommentsService {
       );
     }
 
+    this.activity.log({
+      projectId: issue.projectId,
+      userId: authorId,
+      action: 'COMMENT_ADDED',
+      issueId: issue.id,
+      detail: issue.title,
+    });
+
     return comment;
   }
 
@@ -189,12 +186,7 @@ export class CommentsService {
     });
   }
 
-  async update(
-    id: string,
-    dto: UpdateCommentDto,
-    userId: string,
-    userRole: string,
-  ) {
+  async update(id: string, dto: UpdateCommentDto, userId: string, userRole: string) {
     const comment = await this.prisma.comment.findUnique({ where: { id } });
     if (!comment) throw new NotFoundException(`Comment ${id} not found`);
     await this.assertProjectMembership(comment.issueId, userId, userRole);
@@ -205,7 +197,6 @@ export class CommentsService {
     ) {
       throw new ForbiddenException('You can only edit your own comments');
     }
-    // Only body is editable after creation (attachments are immutable)
     return this.prisma.comment.update({
       where: { id },
       data: { body: dto.body },

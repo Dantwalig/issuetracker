@@ -20,6 +20,7 @@ export default function ProjectLayout({
     { label: 'Backlog', href: `/projects/${id}/backlog` },
     { label: 'Sprints', href: `/projects/${id}/sprints` },
     { label: 'Board', href: `/projects/${id}/board` },
+    { label: 'Activity', href: `/projects/${id}/activity` },
   ];
 
   function isActive(href: string) {
@@ -27,7 +28,7 @@ export default function ProjectLayout({
     return pathname.startsWith(href);
   }
 
-  // Project tab shortcuts
+  // Project tab keyboard shortcuts
   useShortcut('proj:overview', {
     key: 'o',
     description: 'Project Overview',
@@ -57,6 +58,12 @@ export default function ProjectLayout({
     description: 'Go to Sprints',
     group: 'Project Tabs',
     action: () => router.push(`/projects/${id}/sprints`),
+  });
+  useShortcut('proj:activity', {
+    key: 'y',
+    description: 'Go to Activity log',
+    group: 'Project Tabs',
+    action: () => router.push(`/projects/${id}/activity`),
   });
 
   return (

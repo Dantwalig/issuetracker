@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ActivityService } from '../activity/activity.service';
 import { CreateIssueDto, UpdateIssueDto } from './dto/issue.dto';
 import { randomBytes } from 'crypto';
 
@@ -59,6 +60,7 @@ export class IssuesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly activity: ActivityService,
   ) {}
 
   private async assertProjectAccess(
@@ -116,6 +118,14 @@ export class IssuesService {
         projectId: issue.projectId,
       });
     }
+
+    this.activity.log({
+      projectId: issue.projectId,
+      userId: reporterId,
+      action: 'ISSUE_CREATED',
+      issueId: issue.id,
+      detail: issue.title,
+    });
 
     return issue;
   }
@@ -195,6 +205,31 @@ export class IssuesService {
         issueId: issue.id,
         projectId: issue.projectId,
       });
+      this.activity.log({
+        projectId: issue.projectId,
+        userId,
+        action: 'ISSUE_ASSIGNED',
+        issueId: issue.id,
+        detail: issue.title,
+      });
+    }
+
+    if (dto.status && dto.status !== before.status) {
+      this.activity.log({
+        projectId: issue.projectId,
+        userId,
+        action: 'ISSUE_STATUS_CHANGED',
+        issueId: issue.id,
+        detail: `${before.status} → ${dto.status}`,
+      });
+    } else {
+      this.activity.log({
+        projectId: issue.projectId,
+        userId,
+        action: 'ISSUE_UPDATED',
+        issueId: issue.id,
+        detail: issue.title,
+      });
     }
 
     return issue;
@@ -213,12 +248,19 @@ export class IssuesService {
         'Only the reporter or an admin can delete this issue',
       );
     }
+
+    this.activity.log({
+      projectId: issue.projectId,
+      userId,
+      action: 'ISSUE_DELETED',
+      detail: issue.title,
+    });
+
     await this.prisma.issue.delete({ where: { id } });
   }
 
   // ── Share token ──────────────────────────────────────────────────────────
 
-  /** Generate (or return existing) share token for an issue. */
   async generateShareToken(
     issueId: string,
     userId: string,
@@ -235,10 +277,18 @@ export class IssuesService {
       where: { id: issueId },
       data: { shareToken: token },
     });
+
+    this.activity.log({
+      projectId: issue.projectId,
+      userId,
+      action: 'SHARE_LINK_CREATED',
+      issueId: issue.id,
+      detail: issue.title,
+    });
+
     return { shareToken: token };
   }
 
-  /** Revoke share token. */
   async revokeShareToken(
     issueId: string,
     userId: string,
@@ -247,13 +297,21 @@ export class IssuesService {
     const issue = await this.prisma.issue.findUnique({ where: { id: issueId } });
     if (!issue) throw new NotFoundException(`Issue ${issueId} not found`);
     await this.assertProjectAccess(issue.projectId, userId, userRole);
+
     await this.prisma.issue.update({
       where: { id: issueId },
       data: { shareToken: null },
     });
+
+    this.activity.log({
+      projectId: issue.projectId,
+      userId,
+      action: 'SHARE_LINK_REVOKED',
+      issueId: issue.id,
+      detail: issue.title,
+    });
   }
 
-  /** Public read — no auth required. Returns safe subset of fields. */
   async findByShareToken(token: string) {
     const issue = await this.prisma.issue.findUnique({
       where: { shareToken: token },
