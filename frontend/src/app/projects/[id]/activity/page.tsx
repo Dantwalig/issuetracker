@@ -43,17 +43,17 @@ function ActivityRow({ item, projectId }: { item: ActivityItem; projectId: strin
     <div className={styles.item}>
       <div className={styles.avatarWrap}>
         <div className={styles.avatar}>
-          {item.user.avatarUrl ? (
-            <img src={item.user.avatarUrl} alt={item.user.fullName} className={styles.avatarImg} />
+          {item.user?.avatarUrl ? (
+            <img src={item.user.avatarUrl} alt={item.user?.fullName} className={styles.avatarImg} />
           ) : (
-            initials(item.user.fullName)
+            initials(item.user?.fullName)
           )}
         </div>
       </div>
 
       <div className={styles.body}>
         <div className={styles.row}>
-          <span className={styles.actor}>{item.user.fullName}</span>
+          <span className={styles.actor}>{item.user?.fullName}</span>
           <span className={badgeClass(item.action)}>
             {ACTION_LABELS[item.action] ?? item.action}
           </span>

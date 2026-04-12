@@ -173,11 +173,11 @@ export default function IssueDetailPage() {
         <div className={styles.meta}>
           <div className={styles.metaItem}>
             <span className={styles.metaLabel}>Project</span>
-            <span className={styles.metaValue}>{issue.project.name}</span>
+            <span className={styles.metaValue}>{issue.project?.name}</span>
           </div>
           <div className={styles.metaItem}>
             <span className={styles.metaLabel}>Reporter</span>
-            <span className={styles.metaValue}>{issue.reporter.fullName}</span>
+            <span className={styles.metaValue}>{issue.reporter?.fullName}</span>
           </div>
           {issue.assignee && (
             <div className={styles.metaItem}>

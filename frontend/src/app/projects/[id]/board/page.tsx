@@ -409,13 +409,13 @@ function IssueCard({ issue, status, canDrag, onDragStart, onDragEnd, onClick }: 
       </div>
 
       <div className={styles.cardFooter}>
-        <span className={styles.cardReporter} title={issue.reporter.fullName}>
-          <span className={styles.avatar}>{issue.reporter.fullName[0].toUpperCase()}</span>
+        <span className={styles.cardReporter} title={issue.reporter?.fullName}>
+          <span className={styles.avatar}>{issue.reporter?.fullName?.[0]?.toUpperCase()}</span>
           {issue.assignee && (
             <>
               <span className={styles.arrowRight}>→</span>
               <span className={styles.avatar} title={issue.assignee.fullName}>
-                {issue.assignee.fullName[0].toUpperCase()}
+                {issue.assignee.fullName?.[0]?.toUpperCase()}
               </span>
             </>
           )}

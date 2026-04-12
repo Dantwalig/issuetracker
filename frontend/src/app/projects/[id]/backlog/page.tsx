@@ -265,7 +265,7 @@ function BacklogRow({
       <span><TypeBadge type={issue.type} /></span>
       <span><PriorityBadge priority={issue.priority} /></span>
       <span><StatusBadge status={issue.status} /></span>
-      <span className={styles.meta}>{issue.reporter.fullName}</span>
+      <span className={styles.meta}>{issue.reporter?.fullName}</span>
       <span className={styles.date}>{formatDistanceToNow(new Date(issue.updatedAt), { addSuffix: true })}</span>
       {activeSprint && isManager && (
         <span onClick={(e) => e.stopPropagation()}>

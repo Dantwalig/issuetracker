@@ -72,12 +72,12 @@ function CommentBody({
   let remaining = body;
 
   for (const m of mentions) {
-    const tag = `@${m.user.fullName}`;
+    const tag = `@${m.user?.fullName}`;
     const idx = remaining.indexOf(tag);
     if (idx === -1) continue;
     if (idx > 0) parts.push(remaining.slice(0, idx));
     parts.push(
-      <span key={m.user.id} className={styles.mention}>
+      <span key={m.user?.id} className={styles.mention}>
         {tag}
       </span>,
     );

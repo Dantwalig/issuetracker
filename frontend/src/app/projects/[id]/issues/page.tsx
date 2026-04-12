@@ -178,7 +178,7 @@ function IssueRow({ issue, onClick }: { issue: Issue; onClick: () => void }) {
       <span><PriorityBadge priority={issue.priority} /></span>
       <span><DeadlineBadge deadline={issue.deadline} status={issue.status} /></span>
       <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>{issue.storyPoints != null ? issue.storyPoints : '—'}</span>
-      <span className={styles.reporter}>{issue.reporter.fullName}</span>
+      <span className={styles.reporter}>{issue.reporter?.fullName}</span>
       <span className={styles.date}>{formatDistanceToNow(new Date(issue.updatedAt), { addSuffix: true })}</span>
     </div>
   );
