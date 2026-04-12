@@ -16,6 +16,7 @@ import { DeletionRequestsModule } from './deletion-requests/deletion-requests.mo
 import { DeadlineModule } from './deadline/deadline.module';
 import { MessagesModule } from './messages/messages.module';
 import { ChecklistsModule } from './checklists/checklists.module';
+import { LabelsModule } from './labels/labels.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ChecklistsModule } from './checklists/checklists.module';
     DeadlineModule,
     MessagesModule,
     ChecklistsModule,
+    LabelsModule,
   ],
 })
 export class AppModule {}

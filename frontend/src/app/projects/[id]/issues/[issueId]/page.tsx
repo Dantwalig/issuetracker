@@ -12,6 +12,7 @@ import { Modal } from '@/components/ui/Modal';
 import { IssueForm } from '@/components/issues/IssueForm';
 import { IssueComments } from '@/components/issues/IssueComments';
 import { IssueChecklists } from '@/components/issues/IssueChecklists';
+import { IssueLabels } from '@/components/issues/IssueLabels';
 import { ShareModal } from '@/components/issues/ShareModal';
 import { DeleteModal } from '@/components/ui/DeleteModal';
 import { BackButton } from '@/components/ui/BackButton';
@@ -173,6 +174,7 @@ export default function IssueDetailPage() {
           </div>
         </div>
 
+        <IssueLabels issueId={issueId} projectId={projectId} />
         <IssueChecklists issueId={issueId} />
         <IssueComments issueId={issueId} projectMembers={projectMembers} />
       </div>

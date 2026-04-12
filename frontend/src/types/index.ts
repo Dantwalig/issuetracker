@@ -222,3 +222,18 @@ export interface CreateSprintPayload {
 }
 
 export type UpdateSprintPayload = Partial<CreateSprintPayload>;
+
+// ── Labels ─────────────────────────────────────────────────────────────────
+export interface Label {
+  id: string;
+  name: string;
+  color: string;
+  projectId: string;
+  createdAt: string;
+}
+
+export interface IssueLabel {
+  issueId: string;
+  labelId: string;
+  label: Label;
+}
