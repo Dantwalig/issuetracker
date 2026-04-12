@@ -9,6 +9,9 @@ import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
 import styles from './page.module.css';
+import { DeleteModal } from '@/components/ui/DeleteModal';
+import { recycleBinApi } from '@/lib/recycle-bin-api';
+import { BackButton } from '@/components/ui/BackButton';
 
 export default function TeamDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +19,7 @@ export default function TeamDetailPage() {
   const qc = useQueryClient();
   const { user: currentUser } = useAuth();
   const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERADMIN';
+  const [showDelete, setShowDelete] = useState(false);
 
   const [showAddMember, setShowAddMember] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -81,8 +85,13 @@ export default function TeamDetailPage() {
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
-        <button className={styles.backBtn} onClick={() => router.push('/teams')}>← All teams</button>
-        {isAdmin && <button className={styles.editBtn} onClick={openEdit}>Edit</button>}
+        <BackButton href="/teams" label="All teams" />
+        <div className={styles.topBarActions}>
+          {isAdmin && <button className={styles.editBtn} onClick={openEdit}>Edit</button>}
+          {isAdmin && (
+            <button className={styles.deleteBtn} onClick={() => setShowDelete(true)}>Delete</button>
+          )}
+        </div>
       </div>
 
       <div className={styles.card}>
@@ -165,6 +174,18 @@ export default function TeamDetailPage() {
             </div>
           </form>
         </Modal>
+      )}
+
+      {showDelete && team && (
+        <DeleteModal
+          itemName={team.name}
+          itemType="team"
+          onConfirm={async (reason) => {
+            await recycleBinApi.deleteTeam(id, reason);
+            router.push('/teams');
+          }}
+          onCancel={() => setShowDelete(false)}
+        />
       )}
     </div>
   );

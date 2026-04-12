@@ -19,6 +19,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   UpdateRoleDto,
+  UpdateProfileDto,
 } from './dto/auth.dto';
 import { Role } from '@prisma/client';
 
@@ -462,6 +463,17 @@ export class AuthService {
     await this.prisma.user.update({
       where: { id: userId },
       data: { refreshTokenHash: hash },
+    });
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const data: any = {};
+    if (dto.fullName) data.fullName = dto.fullName;
+    if (dto.avatarUrl !== undefined) data.avatarUrl = dto.avatarUrl;
+    return this.prisma.user.update({
+      where: { id: userId },
+      data,
+      select: { id: true, email: true, fullName: true, role: true, avatarUrl: true, isActive: true, mustChangePassword: true },
     });
   }
 }

@@ -12,6 +12,7 @@ const projectSelect = {
   name: true,
   description: true,
   teamId: true,
+  createdById: true,
   createdAt: true,
   updatedAt: true,
   team: {
@@ -29,7 +30,7 @@ const projectSelect = {
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateProjectDto) {
+  async create(dto: CreateProjectDto, createdById: string) {
     let teamMemberIds: string[] = [];
 
     if (dto.teamId) {
@@ -46,9 +47,15 @@ export class ProjectsService {
         name: dto.name,
         description: dto.description,
         teamId: dto.teamId,
-        members: teamMemberIds.length
-          ? { create: teamMemberIds.map((userId) => ({ userId })) }
-          : undefined,
+        createdById,
+        members: {
+          create: [
+            // Always include creator, then add any team members not already covered
+            ...new Map(
+              [createdById, ...teamMemberIds].map((userId) => [userId, { userId }])
+            ).values(),
+          ],
+        },
       },
       select: projectSelect,
     });

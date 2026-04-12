@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { issuesApi } from '@/lib/issues-api';
 import { projectsApi } from '@/lib/projects-api';
 import { Issue, IssueStatus, IssueUser } from '@/types';
-import { StatusBadge, PriorityBadge, TypeBadge } from '@/components/ui/Badge';
+import { StatusBadge, PriorityBadge, TypeBadge, DeadlineBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { IssueForm } from '@/components/issues/IssueForm';
 import { formatDistanceToNow } from 'date-fns';
@@ -105,7 +105,7 @@ export default function ProjectIssuesPage() {
       {!isLoading && filtered.length > 0 && (
         <div className={styles.table}>
           <div className={styles.tableHead}>
-            <span>Title</span><span>Type</span><span>Status</span><span>Priority</span><span>Reporter</span><span>Updated</span>
+            <span>Title</span><span>Type</span><span>Status</span><span>Priority</span><span>Deadline</span><span>SP</span><span>Reporter</span><span>Updated</span>
           </div>
           {filtered.map((issue) => (
             <IssueRow key={issue.id} issue={issue}
@@ -136,6 +136,8 @@ function IssueRow({ issue, onClick }: { issue: Issue; onClick: () => void }) {
       <span><TypeBadge type={issue.type} /></span>
       <span><StatusBadge status={issue.status} /></span>
       <span><PriorityBadge priority={issue.priority} /></span>
+      <span><DeadlineBadge deadline={issue.deadline} status={issue.status} /></span>
+      <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>{issue.storyPoints != null ? issue.storyPoints : '—'}</span>
       <span className={styles.reporter}>{issue.reporter.fullName}</span>
       <span className={styles.date}>{formatDistanceToNow(new Date(issue.updatedAt), { addSuffix: true })}</span>
     </div>

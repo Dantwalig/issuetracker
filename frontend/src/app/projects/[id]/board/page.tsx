@@ -8,7 +8,7 @@ import { projectsApi } from '@/lib/projects-api';
 import { useAuth } from '@/lib/auth-context';
 import { canUpdateIssueStatus } from '@/lib/permissions';
 import { Issue, IssueStatus } from '@/types';
-import { PriorityBadge, TypeBadge } from '@/components/ui/Badge';
+import { PriorityBadge, TypeBadge, DeadlineBadge } from '@/components/ui/Badge';
 import { formatDistanceToNow } from 'date-fns';
 import styles from './page.module.css';
 
@@ -366,11 +366,25 @@ function IssueCard({ issue, status, canDrag, onDragStart, onDragEnd, onClick }: 
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
     >
-      <p className={styles.cardTitle}>{issue.title}</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+        <p className={styles.cardTitle} style={{ margin: 0, flex: 1 }}>{issue.title}</p>
+        {issue.storyPoints != null && (
+          <span style={{
+            flexShrink: 0, minWidth: 22, height: 22,
+            background: 'var(--accent-dim)', color: 'var(--accent)',
+            borderRadius: '50%', fontSize: 11, fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '1px solid var(--accent)',
+          }} title="Story points">
+            {issue.storyPoints}
+          </span>
+        )}
+      </div>
 
       <div className={styles.cardMeta}>
         <TypeBadge type={issue.type} />
         <PriorityBadge priority={issue.priority} />
+        <DeadlineBadge deadline={issue.deadline} status={issue.status} />
       </div>
 
       <div className={styles.cardFooter}>

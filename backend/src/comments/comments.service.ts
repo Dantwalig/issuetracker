@@ -81,7 +81,7 @@ export class CommentsService {
     const comment = await this.prisma.comment.findUnique({ where: { id } });
     if (!comment) throw new NotFoundException(`Comment ${id} not found`);
     await this.assertProjectMembership(comment.issueId, userId, userRole);
-    if (comment.authorId !== userId) {
+    if (comment.authorId !== userId && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       throw new ForbiddenException('You can only edit your own comments');
     }
     return this.prisma.comment.update({

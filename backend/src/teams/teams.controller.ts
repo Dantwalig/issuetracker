@@ -14,6 +14,7 @@ import { TeamsService } from './teams.service';
 import { CreateTeamDto, UpdateTeamDto, AddTeamMemberDto } from './dto/team.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('teams')
 @UseGuards(JwtAuthGuard)
@@ -22,8 +23,8 @@ export class TeamsController {
 
   @Post()
   @UseGuards(AdminGuard)
-  create(@Body() dto: CreateTeamDto) {
-    return this.teamsService.create(dto);
+  create(@Body() dto: CreateTeamDto, @CurrentUser() user: { id: string; role: string }) {
+    return this.teamsService.create(dto, user.id);
   }
 
   @Get()

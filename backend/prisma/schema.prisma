@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -42,16 +43,42 @@ enum NotificationType {
   COMMENT_ADDED
   SPRINT_STARTED
   SPRINT_COMPLETED
+  DELETION_NOTICE
+  DELETION_REQUEST
+  DELETION_APPROVED
+  DELETION_REJECTED
+  RESTORE_REQUEST
+  RESTORE_APPROVED
+  RESTORE_REJECTED
+  DEADLINE_REMINDER
 }
 
+enum DeletedItemType {
+  ISSUE
+  PROJECT
+  TEAM
+}
+
+enum DeletionRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RecycleBinStatus {
+  ACTIVE
+  RESTORED
+  PURGED
+}
 
 model User {
-  id               String   @id @default(cuid())
-  email            String   @unique
-  passwordHash     String
-  fullName         String
-  role             Role     @default(MEMBER)
-  isActive         Boolean  @default(true)
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  passwordHash        String
+  fullName            String
+  role                Role      @default(MEMBER)
+  isActive            Boolean   @default(true)
+  avatarUrl           String?
   refreshTokenHash    String?
   mustChangePassword  Boolean   @default(false)
   passwordResetToken  String?
@@ -59,25 +86,35 @@ model User {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  reportedIssues  Issue[]         @relation("Reporter")
-  assignedIssues  Issue[]         @relation("Assignee")
-  teamMemberships TeamMember[]
-  projectMembers  ProjectMember[]
-  comments        Comment[]
-  notifications   Notification[]
+  reportedIssues    Issue[]           @relation("Reporter")
+  assignedIssues    Issue[]           @relation("Assignee")
+  createdIssues     Issue[]           @relation("IssueCreator")
+  teamMemberships   TeamMember[]
+  projectMembers    ProjectMember[]
+  comments          Comment[]
+  notifications     Notification[]
+  createdTeams      Team[]            @relation("TeamCreator")
+  createdProjects   Project[]         @relation("ProjectCreator")
+  deletedItems      DeletedItem[]     @relation("DeletedBy")
+  deletionRequests  DeletionRequest[] @relation("DeletionRequester")
+  deletionResponses DeletionRequest[] @relation("DeletionResponder")
+  restoreRequests   RestoreRequest[]  @relation("RestoreRequester")
+  restoreResponses  RestoreRequest[]  @relation("RestoreResponder")
 
   @@map("users")
 }
 
 model Team {
-  id          String     @id @default(cuid())
-  name        String     @unique
+  id          String   @id @default(cuid())
+  name        String   @unique
   description String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  members  TeamMember[]
-  projects Project[]
+  createdBy User         @relation("TeamCreator", fields: [createdById], references: [id])
+  members   TeamMember[]
+  projects  Project[]
 
   @@map("teams")
 }
@@ -99,13 +136,15 @@ model Project {
   name        String
   description String?
   teamId      String?
+  createdById String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  team    Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  members ProjectMember[]
-  issues  Issue[]
-  sprints Sprint[]
+  createdBy User            @relation("ProjectCreator", fields: [createdById], references: [id])
+  team      Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  members   ProjectMember[]
+  issues    Issue[]
+  sprints   Sprint[]
 
   @@map("projects")
 }
@@ -145,19 +184,25 @@ model Issue {
   type         IssueType     @default(TASK)
   status       IssueStatus   @default(TODO)
   priority     IssuePriority @default(MEDIUM)
+  storyPoints  Int?
+  deadline     DateTime?
   assigneeId   String?
   reporterId   String
+  createdById  String
   projectId    String
   sprintId     String?
-  backlogOrder Int?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  backlogOrder    Int?
+  reminderSentAt  DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  reporter User      @relation("Reporter", fields: [reporterId], references: [id])
-  assignee User?     @relation("Assignee", fields: [assigneeId], references: [id])
-  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  sprint   Sprint?   @relation(fields: [sprintId], references: [id], onDelete: SetNull)
-  comments Comment[]
+  reporter  User     @relation("Reporter",     fields: [reporterId],  references: [id])
+  assignee  User?    @relation("Assignee",     fields: [assigneeId],  references: [id])
+  createdBy User     @relation("IssueCreator", fields: [createdById], references: [id])
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprint    Sprint?  @relation(fields: [sprintId],  references: [id], onDelete: SetNull)
+  comments  Comment[]
+  deletionRequests DeletionRequest[]
 
   @@map("issues")
 }
@@ -192,4 +237,60 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+model DeletedItem {
+  id           String          @id @default(cuid())
+  itemType     DeletedItemType
+  itemId       String
+  itemSnapshot Json
+  deletedById  String
+  reason       String
+  status       RecycleBinStatus @default(ACTIVE)
+  deletedAt    DateTime         @default(now())
+  expiresAt    DateTime
+  restoredAt   DateTime?
+
+  deletedBy      User             @relation("DeletedBy", fields: [deletedById], references: [id])
+  restoreRequests RestoreRequest[]
+
+  @@index([itemType, status])
+  @@index([expiresAt, status])
+  @@map("deleted_items")
+}
+
+model DeletionRequest {
+  id             String               @id @default(cuid())
+  issueId        String
+  requestedById  String
+  reason         String
+  status         DeletionRequestStatus @default(PENDING)
+  responseReason String?
+  respondedById  String?
+  respondedAt    DateTime?
+  createdAt      DateTime             @default(now())
+
+  issue       Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  requestedBy User   @relation("DeletionRequester", fields: [requestedById], references: [id])
+  respondedBy User?  @relation("DeletionResponder", fields: [respondedById], references: [id])
+
+  @@map("deletion_requests")
+}
+
+model RestoreRequest {
+  id              String               @id @default(cuid())
+  deletedItemId   String
+  requestedById   String
+  reason          String
+  status          DeletionRequestStatus @default(PENDING)
+  responseReason  String?
+  respondedById   String?
+  respondedAt     DateTime?
+  createdAt       DateTime             @default(now())
+
+  deletedItem  DeletedItem @relation(fields: [deletedItemId], references: [id], onDelete: Cascade)
+  requestedBy  User        @relation("RestoreRequester", fields: [requestedById], references: [id])
+  respondedBy  User?       @relation("RestoreResponder", fields: [respondedById], references: [id])
+
+  @@map("restore_requests")
 }

@@ -10,7 +10,7 @@ import { projectsApi } from '@/lib/projects-api';
 import { useAuth } from '@/lib/auth-context';
 import { canManageSprints } from '@/lib/permissions';
 import { Issue } from '@/types';
-import { StatusBadge, PriorityBadge, TypeBadge } from '@/components/ui/Badge';
+import { StatusBadge, PriorityBadge, TypeBadge, DeadlineBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { IssueForm } from '@/components/issues/IssueForm';
 import { formatDistanceToNow } from 'date-fns';
@@ -144,7 +144,12 @@ export default function BacklogPage() {
 
       <div className={styles.titleRow}>
         <h1 className={styles.heading}>Backlog</h1>
-        <p className={styles.sub}>{issues.length} issue{issues.length !== 1 ? 's' : ''}</p>
+        <p className={styles.sub}>
+          {issues.length} issue{issues.length !== 1 ? 's' : ''}
+          {issues.some(i => i.storyPoints != null) && (
+            <> · {issues.reduce((s, i) => s + (i.storyPoints ?? 0), 0)} SP total</>
+          )}
+        </p>
         {reorderMutation.isPending && <span className={styles.saving}>Saving order…</span>}
         {activeSprint && (
           <span className={styles.activeSprintHint}>
@@ -251,6 +256,12 @@ function BacklogRow({
       <span className={styles.handle} title="Drag to reorder"><DragIcon /></span>
       <span className={styles.orderNum}>{index + 1}</span>
       <span className={styles.title}>{issue.title}</span>
+      <DeadlineBadge deadline={issue.deadline} status={issue.status} />
+      {issue.storyPoints != null && (
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-dim)', borderRadius: 99, padding: '1px 7px' }}>
+          {issue.storyPoints} SP
+        </span>
+      )}
       <span><TypeBadge type={issue.type} /></span>
       <span><PriorityBadge priority={issue.priority} /></span>
       <span><StatusBadge status={issue.status} /></span>
