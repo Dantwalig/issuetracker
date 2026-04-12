@@ -55,13 +55,6 @@ export function Sidebar() {
     action: () => router.push('/profile'),
   });
 
-  const { data: dmUnread = 0 } = useQuery({
-    queryKey: ['dm-unread'],
-    queryFn: messagesApi.unreadCount,
-    refetchInterval: 10000,
-    enabled: !!user,
-  });
-
   return (
     <aside className={styles.sidebar}>
       <div className={styles.top}>
