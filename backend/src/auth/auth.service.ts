@@ -362,16 +362,34 @@ export class AuthService {
       data: { assigneeId: null },
     });
 
-    // 2. Issues where user is the reporter — reassign to a system placeholder or delete
-    //    Deleting reported issues also cascades their comments, so this is safe.
-    await this.prisma.issue.deleteMany({
-      where: { reporterId: targetId },
+    // 2. Activity logs authored by this user
+    await this.prisma.activityLog.deleteMany({
+      where: { userId: targetId },
     });
 
-    // 3. Comments authored by this user on issues they did NOT report
-    //    (issues they reported were already deleted above)
+    // 3. Direct messages sent or received by this user
+    await this.prisma.directMessage.deleteMany({
+      where: { OR: [{ senderId: targetId }, { receiverId: targetId }] },
+    });
+
+    // 4. Comments authored by this user
     await this.prisma.comment.deleteMany({
       where: { authorId: targetId },
+    });
+
+    // 5. Issues where user is reporter or createdBy — cascades their comments
+    await this.prisma.issue.deleteMany({
+      where: { OR: [{ reporterId: targetId }, { createdById: targetId }] },
+    });
+
+    // 6. Projects created by this user
+    await this.prisma.project.deleteMany({
+      where: { createdById: targetId },
+    });
+
+    // 7. Teams created by this user
+    await this.prisma.team.deleteMany({
+      where: { createdById: targetId },
     });
 
     await this.prisma.user.delete({ where: { id: targetId } });
