@@ -157,14 +157,21 @@ export class IssuesService {
     const isAdmin = userRole === 'ADMIN' || userRole === 'SUPERADMIN';
     const isReporter = before.reporterId === userId;
     const isAssignee = before.assigneeId === userId;
+    const isUnassigned = before.assigneeId === null;
 
-    if (!isAdmin && !isReporter && !isAssignee) {
+    // For status-only updates: assignee, reporter, admin, OR any project member
+    // if the issue is unassigned (so members can self-assign/claim tasks).
+    // For full edits: only reporter or admin.
+    const canUpdateStatus = isAdmin || isReporter || isAssignee || isUnassigned;
+
+    if (!canUpdateStatus) {
       throw new ForbiddenException(
         'You can only edit issues you reported or are assigned to',
       );
     }
 
-    if (!isAdmin && !isReporter && isAssignee) {
+    // Non-admins who are not the reporter may only update status.
+    if (!isAdmin && !isReporter) {
       const { status, ...otherFields } = dto;
       const hasOtherChanges = Object.keys(otherFields).some(
         (k) => (otherFields as any)[k] !== undefined,
