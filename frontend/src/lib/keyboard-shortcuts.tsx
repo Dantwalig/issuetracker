@@ -115,13 +115,31 @@ export function useKeyboardShortcuts() {
 /**
  * Register a keyboard shortcut. Automatically unregisters on unmount.
  * Pass `disabled: true` to temporarily disable without unregistering.
+ *
+ * The `action` callback is stored in a ref so that a new arrow-function
+ * reference on every render (e.g. `() => router.push('/x')` in Sidebar)
+ * does NOT trigger a re-registration, which would cause an infinite
+ * setState loop and break navigation.
  */
 export function useShortcut(id: string, shortcut: Shortcut) {
   const { register, unregister } = useKeyboardShortcuts();
 
+  // Keep the latest action in a ref so the registered shortcut always calls
+  // the most up-to-date version without needing to re-register.
+  const actionRef = useRef(shortcut.action);
   useEffect(() => {
-    register(id, shortcut);
+    actionRef.current = shortcut.action;
+  });
+
+  useEffect(() => {
+    const stableShortcut: Shortcut = {
+      ...shortcut,
+      action: () => actionRef.current(),
+    };
+    register(id, stableShortcut);
     return () => unregister(id);
+    // Only re-register when the key binding or disabled flag changes —
+    // never when `action` changes (that is handled by the ref above).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, shortcut.key, shortcut.disabled, shortcut.action]);
+  }, [id, shortcut.key, shortcut.disabled]);
 }
