@@ -18,9 +18,9 @@ api.interceptors.request.use((config) => {
 });
 
 /**
- * Dispatch a custom event so AuthProvider can handle logout via
- * Next.js router.push() instead of a hard window.location.href reload,
- * which was destroying the React tree and freezing client-side navigation.
+ * Dispatch a custom event so AuthProvider handles logout via
+ * router.push() instead of window.location.href, which was causing
+ * hard page reloads that destroyed client-side navigation.
  */
 function softRedirectToLogin() {
   if (typeof window !== 'undefined') {

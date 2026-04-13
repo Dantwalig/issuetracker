@@ -46,8 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Listen for the soft-logout event dispatched by the axios interceptor.
-  // Using router.push() instead of window.location.href keeps the React
-  // tree alive and preserves client-side navigation.
+  // Uses router.push() instead of window.location.href to preserve the
+  // React tree and keep client-side navigation working.
   useEffect(() => {
     function handleAuthLogout() {
       setUser(null);
