@@ -10,6 +10,7 @@ import { canUpdateIssueStatus } from '@/lib/permissions';
 import { Issue, IssueStatus } from '@/types';
 import { PriorityBadge, TypeBadge, DeadlineBadge } from '@/components/ui/Badge';
 import { formatDistanceToNow } from 'date-fns';
+import { useShortcut } from '@/lib/keyboard-shortcuts';
 import styles from './page.module.css';
 
 const COLUMNS: { key: IssueStatus; label: string }[] = [
@@ -55,6 +56,26 @@ export default function BoardPage() {
   // Optimistic columns — mirrors server state locally during drag
   const [optimisticColumns, setOptimisticColumns] = useState<BoardColumns | null>(null);
   const columns = optimisticColumns ?? board?.columns ?? { TODO: [], IN_PROGRESS: [], DONE: [] };
+
+  // Board keyboard shortcuts — navigate to project sub-pages
+  useShortcut('board:issues', {
+    key: 'i',
+    description: 'Go to Issues list',
+    group: 'Board',
+    action: () => router.push(`/projects/${projectId}/issues`),
+  });
+  useShortcut('board:backlog', {
+    key: 'b',
+    description: 'Go to Backlog',
+    group: 'Board',
+    action: () => router.push(`/projects/${projectId}/backlog`),
+  });
+  useShortcut('board:refresh', {
+    key: 'r',
+    description: 'Refresh board',
+    group: 'Board',
+    action: () => qc.invalidateQueries({ queryKey: ['board', projectId] }),
+  });
 
   const statusMutation = useMutation({
     mutationFn: ({ issueId, status }: { issueId: string; status: IssueStatus }) =>
@@ -388,13 +409,13 @@ function IssueCard({ issue, status, canDrag, onDragStart, onDragEnd, onClick }: 
       </div>
 
       <div className={styles.cardFooter}>
-        <span className={styles.cardReporter} title={issue.reporter.fullName}>
-          <span className={styles.avatar}>{issue.reporter.fullName[0].toUpperCase()}</span>
+        <span className={styles.cardReporter} title={issue.reporter?.fullName}>
+          <span className={styles.avatar}>{issue.reporter?.fullName?.[0]?.toUpperCase()}</span>
           {issue.assignee && (
             <>
               <span className={styles.arrowRight}>→</span>
               <span className={styles.avatar} title={issue.assignee.fullName}>
-                {issue.assignee.fullName[0].toUpperCase()}
+                {issue.assignee.fullName?.[0]?.toUpperCase()}
               </span>
             </>
           )}

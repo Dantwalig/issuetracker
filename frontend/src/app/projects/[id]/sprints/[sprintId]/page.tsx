@@ -381,7 +381,7 @@ function IssueRow({
       <span><TypeBadge type={issue.type} /></span>
       <span><PriorityBadge priority={issue.priority} /></span>
       <span><StatusBadge status={issue.status} /></span>
-      <span className={styles.issueReporter}>{issue.reporter.fullName}</span>
+      <span className={styles.issueReporter}>{issue.reporter?.fullName}</span>
       {action && <span onClick={(e) => e.stopPropagation()}>{action}</span>}
     </div>
   );

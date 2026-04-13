@@ -3,14 +3,63 @@
 import { useAuth } from '@/lib/auth-context';
 import styles from './Sidebar.module.css';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { messagesApi } from '@/lib/messages-api';
+import { useShortcut } from '@/lib/keyboard-shortcuts';
 
 export function Sidebar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const isPrivileged = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
   const active = (path: string) =>
     `${styles.navItem} ${pathname.startsWith(path) ? styles.active : ''}`;
+
+  const { data: dmUnread = 0 } = useQuery({
+    queryKey: ['dm-unread'],
+    queryFn: messagesApi.unreadCount,
+    refetchInterval: 10000,
+    enabled: !!user,
+  });
+
+  // Global navigation shortcuts
+  useShortcut('nav:my-work', {
+    key: 'h',
+    description: 'Go to My Work',
+    group: 'Navigation',
+    action: () => router.push('/my-work'),
+  });
+  useShortcut('nav:projects', {
+    key: 'p',
+    description: 'Go to Projects',
+    group: 'Navigation',
+    action: () => router.push('/projects'),
+  });
+  useShortcut('nav:teams', {
+    key: 't',
+    description: 'Go to Teams',
+    group: 'Navigation',
+    action: () => router.push('/teams'),
+  });
+  useShortcut('nav:messages', {
+    key: 'm',
+    description: 'Go to Messages',
+    group: 'Navigation',
+    action: () => router.push('/messages'),
+  });
+  useShortcut('nav:notifications', {
+    key: 'i',
+    description: 'Go to Notifications',
+    group: 'Navigation',
+    action: () => router.push('/notifications'),
+  });
+  useShortcut('nav:profile', {
+    key: 'u',
+    description: 'Go to Profile',
+    group: 'Navigation',
+    action: () => router.push('/profile'),
+  });
 
   return (
     <aside className={styles.sidebar}>
@@ -21,9 +70,17 @@ export function Sidebar() {
         </div>
 
         <nav className={styles.nav}>
+          <Link href="/my-work" className={active('/my-work')}><MyWorkIcon /> My Work</Link>
           <Link href="/teams" className={active('/teams')}><TeamsIcon /> Teams</Link>
           <Link href="/projects" className={active('/projects')}><ProjectsIcon /> Projects</Link>
           <Link href="/notifications" className={active('/notifications')}><BellIcon /> Notifications</Link>
+          <Link href="/messages" className={active('/messages')}>
+            <ChatIcon />
+            Messages
+            {dmUnread > 0 && (
+              <span className={styles.navBadge}>{dmUnread > 99 ? '99+' : dmUnread}</span>
+            )}
+          </Link>
           <Link href="/recycle-bin" className={active('/recycle-bin')}><TrashIcon /> Recycle Bin</Link>
           {isPrivileged && (
             <Link href="/admin/users" className={active('/admin/users')}><UsersIcon /> Users</Link>
@@ -56,6 +113,9 @@ export function Sidebar() {
   );
 }
 
+function MyWorkIcon() {
+  return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/><path d="M5.5 8.5l1.5 1.5 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+}
 function TeamsIcon() {
   return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="5.5" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="10.5" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.5"/><path d="M1 13c0-2 2-3.5 4.5-3.5S10 11 10 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M10 9.5c2.5 0 4.5 1.5 4.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>;
 }
@@ -64,6 +124,9 @@ function ProjectsIcon() {
 }
 function BellIcon() {
   return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2a4 4 0 0 0-4 4v2.5L2.5 10h11L12 8.5V6a4 4 0 0 0-4-4Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M6.5 12a1.5 1.5 0 0 0 3 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>;
+}
+function ChatIcon() {
+  return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M14 2H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3l2 2 2-2h5a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M5 6h6M5 9h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>;
 }
 function TrashIcon() {
   return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;

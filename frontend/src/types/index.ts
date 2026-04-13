@@ -7,11 +7,21 @@ export type DeletedItemType = 'ISSUE' | 'PROJECT' | 'TEAM';
 export type RecycleBinStatus = 'ACTIVE' | 'RESTORED' | 'PURGED';
 export type DeletionRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
-// Declared before Notification so the interface can reference it
 export type NotificationType =
-  | 'ISSUE_ASSIGNED' | 'COMMENT_ADDED' | 'SPRINT_STARTED' | 'SPRINT_COMPLETED'
-  | 'DELETION_NOTICE' | 'DELETION_REQUEST' | 'DELETION_APPROVED' | 'DELETION_REJECTED'
-  | 'RESTORE_REQUEST' | 'RESTORE_APPROVED' | 'RESTORE_REJECTED' | 'DEADLINE_REMINDER';
+  | 'ISSUE_ASSIGNED'
+  | 'COMMENT_ADDED'
+  | 'SPRINT_STARTED'
+  | 'SPRINT_COMPLETED'
+  | 'DELETION_NOTICE'
+  | 'DELETION_REQUEST'
+  | 'DELETION_APPROVED'
+  | 'DELETION_REJECTED'
+  | 'RESTORE_REQUEST'
+  | 'RESTORE_APPROVED'
+  | 'RESTORE_REJECTED'
+  | 'DEADLINE_REMINDER'
+  | 'DIRECT_MESSAGE'
+  | 'MENTION';
 
 export interface User {
   id: string;
@@ -83,31 +93,22 @@ export interface Issue {
   priority: IssuePriority;
   storyPoints?: number | null;
   deadline?: string | null;
-  assigneeId?: string;
-  reporterId: string;
-  createdById: string;
   projectId: string;
   sprintId?: string | null;
-  backlogOrder?: number | null;
-  reporter: IssueUser;
-  assignee?: IssueUser;
-  project: { id: string; name: string };
+  reporterId?: string | null;
+  assigneeId?: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  user: Pick<User, 'id' | 'email' | 'fullName' | 'role' | 'mustChangePassword'>;
+  reporter?: IssueUser | null;
+  assignee?: IssueUser | null;
+  project?: { id: string; name: string };
 }
 
 export interface DeletedItem {
   id: string;
   itemType: DeletedItemType;
   itemId: string;
-  itemSnapshot: any;
-  deletedById: string;
+  itemSnapshot: Record<string, unknown>;
   reason: string;
   status: RecycleBinStatus;
   deletedAt: string;
@@ -142,6 +143,50 @@ export interface Notification {
   createdAt: string;
 }
 
+// ── Comment attachment ─────────────────────────────────────────────────────
+export interface CommentAttachment {
+  id: string;
+  fileName: string;
+  /** base64-encoded file data (stored directly) */
+  fileUrl: string;
+  fileSize: number;
+  mimeType: string;
+  createdAt: string;
+}
+
+// ── Comment mention ────────────────────────────────────────────────────────
+export interface CommentMention {
+  id: string;
+  userId: string;
+  user: IssueUser;
+}
+
+export interface Comment {
+  id: string;
+  issueId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+  author: IssueUser;
+  attachments: CommentAttachment[];
+  mentions: CommentMention[];
+}
+
+export interface CreateCommentPayload {
+  body: string;
+  attachments?: {
+    fileName: string;
+    fileData: string;
+    mimeType: string;
+    fileSize: number;
+  }[];
+  mentionedUserIds?: string[];
+}
+
+export type UpdateCommentPayload = Pick<CreateCommentPayload, 'body'>;
+
+// ── Issue payloads ─────────────────────────────────────────────────────────
 export interface CreateIssuePayload {
   title: string;
   description?: string;
@@ -177,15 +222,17 @@ export interface CreateSprintPayload {
 
 export type UpdateSprintPayload = Partial<CreateSprintPayload>;
 
-export interface Comment {
+// ── Labels ─────────────────────────────────────────────────────────────────
+export interface Label {
   id: string;
-  issueId: string;
-  authorId: string;
-  body: string;
+  name: string;
+  color: string;
+  projectId: string;
   createdAt: string;
-  updatedAt: string;
-  author: IssueUser;
 }
 
-export interface CreateCommentPayload { body: string; }
-export type UpdateCommentPayload = CreateCommentPayload;
+export interface IssueLabel {
+  issueId: string;
+  labelId: string;
+  label: Label;
+}

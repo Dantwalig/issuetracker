@@ -14,6 +14,11 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { RecycleBinModule } from './recycle-bin/recycle-bin.module';
 import { DeletionRequestsModule } from './deletion-requests/deletion-requests.module';
 import { DeadlineModule } from './deadline/deadline.module';
+import { MessagesModule } from './messages/messages.module';
+import { ChecklistsModule } from './checklists/checklists.module';
+import { LabelsModule } from './labels/labels.module';
+import { ActivityModule } from './activity/activity.module';
+import { MyWorkModule } from './my-work/my-work.module';
 
 @Module({
   imports: [
@@ -32,6 +37,11 @@ import { DeadlineModule } from './deadline/deadline.module';
     RecycleBinModule,
     DeletionRequestsModule,
     DeadlineModule,
+    MessagesModule,
+    ChecklistsModule,
+    LabelsModule,
+    ActivityModule,
+    MyWorkModule,
   ],
 })
 export class AppModule {}

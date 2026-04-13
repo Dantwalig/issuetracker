@@ -2,8 +2,9 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { User, AuthTokens } from '@/types';
+import { User } from '@/types';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface AuthContextValue {
   user: User | null;
@@ -19,6 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   async function fetchMe() {
     const res = await api.get<User>('/auth/me');
@@ -45,11 +47,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
+  // Listen for the soft-logout event dispatched by the axios interceptor.
+  // Uses router.push() instead of window.location.href to preserve the
+  // React tree and keep client-side navigation working.
+  useEffect(() => {
+    function handleAuthLogout() {
+      queryClient.clear();
+      setUser(null);
+      router.push('/login');
+    }
+    window.addEventListener('auth:logout', handleAuthLogout);
+    return () => window.removeEventListener('auth:logout', handleAuthLogout);
+  }, [router, queryClient]);
+
   async function login(email: string, password: string) {
-    const { data } = await api.post<AuthTokens>('/auth/login', {
-      email,
-      password,
-    });
+    const { data } = await api.post<{
+      accessToken: string;
+      refreshToken: string;
+      user: User & { mustChangePassword?: boolean };
+    }>('/auth/login', { email, password });
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user as User);
@@ -66,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await api.post('/auth/logout');
     } finally {
       localStorage.clear();
+      queryClient.clear();
       setUser(null);
       router.push('/login');
     }

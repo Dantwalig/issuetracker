@@ -114,17 +114,17 @@ export default function TeamDetailPage() {
           <div className={styles.memberList}>
             {team.members.length === 0 && <p className={styles.empty}>No members yet.</p>}
             {team.members.map((m) => (
-              <div key={m.user.id} className={styles.memberRow}>
-                <div className={styles.memberAvatar}>{m.user.fullName[0].toUpperCase()}</div>
+              <div key={m.user?.id} className={styles.memberRow}>
+                <div className={styles.memberAvatar}>{m.user?.fullName?.[0]?.toUpperCase()}</div>
                 <div className={styles.memberInfo}>
-                  <span className={styles.memberName}>{m.user.fullName}</span>
-                  <span className={styles.memberEmail}>{m.user.email}</span>
+                  <span className={styles.memberName}>{m.user?.fullName}</span>
+                  <span className={styles.memberEmail}>{m.user?.email}</span>
                 </div>
-                <span className={styles.memberRole}>{m.user.role}</span>
+                <span className={styles.memberRole}>{m.user?.role}</span>
                 {isAdmin && (
                   <button
                     className={styles.removeBtn}
-                    onClick={() => removeMemberMutation.mutate(m.user.id)}
+                    onClick={() => removeMemberMutation.mutate(m.user?.id)}
                     disabled={removeMemberMutation.isPending}
                   >Remove</button>
                 )}

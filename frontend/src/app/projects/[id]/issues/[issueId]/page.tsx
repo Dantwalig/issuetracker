@@ -11,12 +11,16 @@ import { StatusBadge, PriorityBadge, TypeBadge, DeadlineBadge } from '@/componen
 import { Modal } from '@/components/ui/Modal';
 import { IssueForm } from '@/components/issues/IssueForm';
 import { IssueComments } from '@/components/issues/IssueComments';
+import { IssueChecklists } from '@/components/issues/IssueChecklists';
+import { IssueLabels } from '@/components/issues/IssueLabels';
+import { ShareModal } from '@/components/issues/ShareModal';
 import { DeleteModal } from '@/components/ui/DeleteModal';
 import { BackButton } from '@/components/ui/BackButton';
 import { recycleBinApi } from '@/lib/recycle-bin-api';
 import { deletionRequestsApi } from '@/lib/deletion-requests-api';
 import { IssueUser } from '@/types';
 import { format } from 'date-fns';
+import { useShortcut } from '@/lib/keyboard-shortcuts';
 import styles from './page.module.css';
 
 export default function IssueDetailPage() {
@@ -33,6 +37,7 @@ export default function IssueDetailPage() {
   const [requestError, setRequestError] = useState('');
   const [requestSuccess, setRequestSuccess] = useState('');
   const [requestLoading, setRequestLoading] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -91,6 +96,38 @@ export default function IssueDetailPage() {
 
   const projectMembers: IssueUser[] = (project?.members ?? []).map((m) => m.user);
 
+  // Keyboard shortcuts for issue detail
+  useShortcut('issue-detail:edit', {
+    key: 'e',
+    description: 'Edit issue',
+    group: 'Issue Detail',
+    action: () => { if (showEditBtn) setShowEdit(true); },
+    disabled: !showEditBtn,
+  });
+  useShortcut('issue-detail:share', {
+    key: 's',
+    description: 'Share issue',
+    group: 'Issue Detail',
+    action: () => setShowShare(true),
+  });
+  useShortcut('issue-detail:back', {
+    key: 'Backspace',
+    description: 'Back to issues list',
+    group: 'Issue Detail',
+    action: () => router.push(`/projects/${projectId}/issues`),
+  });
+  useShortcut('issue-detail:escape', {
+    key: 'Escape',
+    description: 'Close dialog / cancel',
+    group: 'Global',
+    action: () => {
+      if (showEdit) { setShowEdit(false); return; }
+      if (showShare) { setShowShare(false); return; }
+      if (showDeleteModal) { setShowDeleteModal(false); return; }
+    },
+    disabled: !showEdit && !showShare && !showDeleteModal,
+  });
+
   return (
     <div className={styles.page}>
       <BackButton href={`/projects/${projectId}/issues`} label="Back to issues" />
@@ -106,6 +143,7 @@ export default function IssueDetailPage() {
           <span className={styles.breadCurrent}>{issue.id.slice(0, 8)}</span>
         </nav>
         <div className={styles.topActions}>
+          <button className={styles.editBtn} onClick={() => setShowShare(true)}>Share</button>
           {showEditBtn && <button className={styles.editBtn} onClick={() => setShowEdit(true)}>Edit</button>}
           {showStatusOnly && <button className={styles.editBtn} onClick={() => setShowEdit(true)}>Update status</button>}
           {showAdminDelete && (
@@ -135,11 +173,11 @@ export default function IssueDetailPage() {
         <div className={styles.meta}>
           <div className={styles.metaItem}>
             <span className={styles.metaLabel}>Project</span>
-            <span className={styles.metaValue}>{issue.project.name}</span>
+            <span className={styles.metaValue}>{issue.project?.name}</span>
           </div>
           <div className={styles.metaItem}>
             <span className={styles.metaLabel}>Reporter</span>
-            <span className={styles.metaValue}>{issue.reporter.fullName}</span>
+            <span className={styles.metaValue}>{issue.reporter?.fullName}</span>
           </div>
           {issue.assignee && (
             <div className={styles.metaItem}>
@@ -169,7 +207,9 @@ export default function IssueDetailPage() {
           </div>
         </div>
 
-        <IssueComments issueId={issueId} />
+        <IssueLabels issueId={issueId} projectId={projectId} />
+        <IssueChecklists issueId={issueId} />
+        <IssueComments issueId={issueId} projectMembers={projectMembers} />
       </div>
 
       {/* Admin soft-delete with reason */}
@@ -232,6 +272,17 @@ export default function IssueDetailPage() {
             )}
           </div>
         </Modal>
+      )}
+
+      {/* Share modal */}
+      {showShare && (
+        <ShareModal
+          issue={issue}
+          onClose={() => setShowShare(false)}
+          onTokenChange={(token) => {
+            qc.invalidateQueries({ queryKey: ['issue', projectId, issueId] });
+          }}
+        />
       )}
 
       {/* Edit modal */}

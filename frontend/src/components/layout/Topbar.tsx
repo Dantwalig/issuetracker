@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useQuery } from '@tanstack/react-query';
 import { notificationsApi } from '@/lib/notifications-api';
+import { ShortcutsButton } from './ShortcutsButton';
 import styles from './Topbar.module.css';
 
 export function Topbar() {
@@ -13,12 +14,14 @@ export function Topbar() {
     queryKey: ['notifications-unread'],
     queryFn: notificationsApi.unreadCount,
     refetchInterval: 30_000,
+    enabled: !!user, // only poll when authenticated — prevents spurious 401s
   });
 
   return (
     <header className={styles.topbar}>
       <div className={styles.spacer} />
       <div className={styles.actions}>
+        <ShortcutsButton />
         <button
           className={styles.iconBtn}
           onClick={() => router.push('/notifications')}
