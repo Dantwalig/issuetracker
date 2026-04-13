@@ -37,7 +37,7 @@ export default function SprintsPage() {
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
 
-
+  const {
     data: sprints = [],
     isLoading,
     isError,
