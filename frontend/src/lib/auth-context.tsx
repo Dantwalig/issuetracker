@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (data.user.mustChangePassword) {
       router.push('/change-password');
     } else {
-      router.push('/projects');
+      router.push('/my-work');
     }
   }
 

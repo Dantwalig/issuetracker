@@ -79,24 +79,17 @@ export default function IssueDetailPage() {
     }
   }
 
-  if (isLoading) return <div className={styles.center}><span className={styles.spinner} /></div>;
-  if (isError || !issue) return (
-    <div className={styles.center}>
-      <p>Issue not found.</p>
-      <button className={styles.backLink} onClick={() => router.push(`/projects/${projectId}/issues`)}>← Back</button>
-    </div>
-  );
-
   const userIsAdmin = isAdmin(user);
   const showEditBtn = canEditIssue(user, issue);
   const showStatusOnly = !showEditBtn && canUpdateIssueStatus(user, issue);
   const showAdminDelete = userIsAdmin && canDeleteIssue(user, issue);
   // Members can request deletion of issues they reported
-  const showRequestDeleteBtn = !userIsAdmin && issue.reporterId === user?.id;
+  const showRequestDeleteBtn = !userIsAdmin && issue?.reporterId === user?.id;
 
   const projectMembers: IssueUser[] = (project?.members ?? []).map((m) => m.user);
 
   // Keyboard shortcuts for issue detail
+  // NOTE: these must be called before any early returns to comply with React's Rules of Hooks
   useShortcut('issue-detail:edit', {
     key: 'e',
     description: 'Edit issue',
@@ -127,6 +120,14 @@ export default function IssueDetailPage() {
     },
     disabled: !showEdit && !showShare && !showDeleteModal,
   });
+
+  if (isLoading) return <div className={styles.center}><span className={styles.spinner} /></div>;
+  if (isError || !issue) return (
+    <div className={styles.center}>
+      <p>Issue not found.</p>
+      <button className={styles.backLink} onClick={() => router.push(`/projects/${projectId}/issues`)}>← Back</button>
+    </div>
+  );
 
   return (
     <div className={styles.page}>
