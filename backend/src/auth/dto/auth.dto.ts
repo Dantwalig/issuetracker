@@ -31,8 +31,8 @@ export class CreateUserDto {
   fullName: string;
 
   @IsOptional()
-  @IsEnum(['ADMIN', 'MEMBER'])
-  role?: 'ADMIN' | 'MEMBER';
+  @IsEnum(['ADMIN', 'TEAM_LEAD', 'MEMBER'])
+  role?: 'ADMIN' | 'TEAM_LEAD' | 'MEMBER';
 }
 
 export class ChangePasswordDto {
@@ -45,10 +45,10 @@ export class ChangePasswordDto {
   newPassword: string;
 }
 
-// Regular admins can only set ADMIN or MEMBER — SUPERADMIN has its own endpoint
+// Regular admins can only set ADMIN, TEAM_LEAD, or MEMBER — SUPERADMIN has its own endpoint
 export class UpdateRoleDto {
-  @IsEnum(['ADMIN', 'MEMBER'])
-  role: 'ADMIN' | 'MEMBER';
+  @IsEnum(['ADMIN', 'TEAM_LEAD', 'MEMBER'])
+  role: 'ADMIN' | 'TEAM_LEAD' | 'MEMBER';
 }
 
 export class ForgotPasswordDto {

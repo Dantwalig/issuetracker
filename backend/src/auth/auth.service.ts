@@ -256,6 +256,11 @@ export class AuthService {
       throw new ForbiddenException('Only a superadmin can change another admin\'s role');
     }
 
+    // Only SUPERADMIN can promote to ADMIN
+    if (dto.role === 'ADMIN' && callerRole !== 'SUPERADMIN') {
+      throw new ForbiddenException('Only a superadmin can assign the Admin role');
+    }
+
     // Nobody can demote a SUPERADMIN via this endpoint
     if (user.role === 'SUPERADMIN') {
       throw new ForbiddenException('The superadmin role cannot be changed');

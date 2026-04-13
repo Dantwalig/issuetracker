@@ -7,7 +7,7 @@ import { usersApi } from '@/lib/users-api';
 import { User, Role } from '@/types';
 import styles from './page.module.css';
 
-const EMPTY_FORM = { fullName: '', email: '', role: 'MEMBER' as 'ADMIN' | 'MEMBER' };
+const EMPTY_FORM = { fullName: '', email: '', role: 'MEMBER' as 'ADMIN' | 'TEAM_LEAD' | 'MEMBER' };
 
 function extractMsg(err: unknown): string {
   const msg = (err as { response?: { data?: { message?: string | string[] } } })
@@ -18,6 +18,7 @@ function extractMsg(err: unknown): string {
 function roleBadgeClass(role: Role, styles: Record<string, string>) {
   if (role === 'SUPERADMIN') return `${styles.roleBadge} ${styles.roleSuperAdmin}`;
   if (role === 'ADMIN') return `${styles.roleBadge} ${styles.roleAdmin}`;
+  if (role === 'TEAM_LEAD') return `${styles.roleBadge} ${styles.roleTeamLead}`;
   return `${styles.roleBadge} ${styles.roleMember}`;
 }
 
@@ -44,8 +45,8 @@ function UserModal({
   // Regular admins cannot manage other admins or superadmins
   const canManage = isSuperAdmin || (!targetIsAdmin && !targetIsSuperAdmin);
 
-  const [selectedRole, setSelectedRole] = useState<'ADMIN' | 'MEMBER'>(
-    user.role === 'SUPERADMIN' ? 'ADMIN' : (user.role as 'ADMIN' | 'MEMBER'),
+  const [selectedRole, setSelectedRole] = useState<'ADMIN' | 'TEAM_LEAD' | 'MEMBER'>(
+    user.role === 'SUPERADMIN' ? 'ADMIN' : (user.role as 'ADMIN' | 'TEAM_LEAD' | 'MEMBER'),
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmPromote, setConfirmPromote] = useState(false);
@@ -109,7 +110,7 @@ function UserModal({
             <p className={styles.modalEmail}>{user.email}</p>
           </div>
           <span className={roleBadgeClass(user.role, styles)}>
-            {user.role === 'SUPERADMIN' ? 'Superadmin' : user.role === 'ADMIN' ? 'Admin' : 'Member'}
+            {user.role === 'SUPERADMIN' ? 'Superadmin' : user.role === 'ADMIN' ? 'Admin' : user.role === 'TEAM_LEAD' ? 'Team Lead' : 'Member'}
           </span>
         </div>
 
@@ -184,10 +185,11 @@ function UserModal({
                 <select
                   className={styles.select}
                   value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value as 'ADMIN' | 'MEMBER')}
+                  onChange={(e) => setSelectedRole(e.target.value as 'ADMIN' | 'TEAM_LEAD' | 'MEMBER')}
                   disabled={busy}
                 >
                   <option value="MEMBER">Member</option>
+                  <option value="TEAM_LEAD">Team Lead</option>
                   <option value="ADMIN">Admin</option>
                 </select>
                 <button
@@ -336,6 +338,7 @@ export default function AdminUsersPage() {
               <label className={styles.label} htmlFor="role">Role</label>
               <select id="role" name="role" className={styles.select} value={form.role} onChange={handleChange}>
                 <option value="MEMBER">Member</option>
+                <option value="TEAM_LEAD">Team Lead</option>
                 <option value="ADMIN">Admin</option>
               </select>
             </div>
@@ -382,7 +385,7 @@ export default function AdminUsersPage() {
                     <td>{u.email}</td>
                     <td>
                       <span className={roleBadgeClass(u.role, styles)}>
-                        {u.role === 'SUPERADMIN' ? 'Superadmin' : u.role === 'ADMIN' ? 'Admin' : 'Member'}
+                        {u.role === 'SUPERADMIN' ? 'Superadmin' : u.role === 'ADMIN' ? 'Admin' : u.role === 'TEAM_LEAD' ? 'Team Lead' : 'Member'}
                       </span>
                     </td>
                     <td>{new Date(u.createdAt).toLocaleDateString()}</td>
@@ -419,7 +422,7 @@ export default function AdminUsersPage() {
                     <td>{u.email}</td>
                     <td>
                       <span className={roleBadgeClass(u.role, styles)}>
-                        {u.role === 'SUPERADMIN' ? 'Superadmin' : u.role === 'ADMIN' ? 'Admin' : 'Member'}
+                        {u.role === 'SUPERADMIN' ? 'Superadmin' : u.role === 'ADMIN' ? 'Admin' : u.role === 'TEAM_LEAD' ? 'Team Lead' : 'Member'}
                       </span>
                     </td>
                     <td>{new Date(u.createdAt).toLocaleDateString()}</td>
