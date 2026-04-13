@@ -151,6 +151,7 @@ model Project {
   issues       Issue[]
   sprints      Sprint[]
   activityLogs ActivityLog[]
+  labels       Label[]
 
   @@map("projects")
 }

@@ -67,7 +67,7 @@ export class MyWorkService {
     });
 
     // Recent activity on my issues (last 30 events)
-    const recentActivity = await this.prisma.activity.findMany({
+    const recentActivity = await this.prisma.activityLog.findMany({
       where: {
         OR: [
           { userId },

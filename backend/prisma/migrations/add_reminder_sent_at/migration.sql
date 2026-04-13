@@ -1,2 +1,2 @@
 -- Add reminderSentAt to issues for idempotent deadline cron
-ALTER TABLE "issues" ADD COLUMN "reminderSentAt" TIMESTAMP(3);
+ALTER TABLE "issues" ADD COLUMN IF NOT EXISTS "reminderSentAt" TIMESTAMP(3);
