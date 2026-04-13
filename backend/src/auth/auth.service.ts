@@ -221,7 +221,7 @@ export class AuthService {
         email: dto.email,
         fullName: dto.fullName,
         passwordHash,
-        role: dto.role ?? Role.MEMBER,
+        role: (dto.role ?? Role.MEMBER) as Role,
         mustChangePassword: true,
       },
     });
@@ -254,6 +254,11 @@ export class AuthService {
     // Only SUPERADMIN can change another admin's role
     if (user.role === 'ADMIN' && callerRole !== 'SUPERADMIN') {
       throw new ForbiddenException('Only a superadmin can change another admin\'s role');
+    }
+
+    // Only SUPERADMIN can promote to ADMIN
+    if (dto.role === 'ADMIN' && callerRole !== 'SUPERADMIN') {
+      throw new ForbiddenException('Only a superadmin can assign the Admin role');
     }
 
     // Nobody can demote a SUPERADMIN via this endpoint

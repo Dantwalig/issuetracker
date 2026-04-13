@@ -80,11 +80,11 @@ export default function IssueDetailPage() {
   }
 
   const userIsAdmin = isAdmin(user);
-  const showEditBtn = canEditIssue(user, issue);
-  const showStatusOnly = !showEditBtn && canUpdateIssueStatus(user, issue);
-  const showAdminDelete = userIsAdmin && canDeleteIssue(user, issue);
-  // Members can request deletion of issues they reported
-  const showRequestDeleteBtn = !userIsAdmin && issue?.reporterId === user?.id;
+  const showEditBtn = canEditIssue(user, issue, project);
+  const showStatusOnly = !showEditBtn && canUpdateIssueStatus(user, issue, project);
+  const showAdminDelete = canDeleteIssue(user, issue, project);
+  // Members can request deletion of issues they reported (when not already able to direct-delete)
+  const showRequestDeleteBtn = !showAdminDelete && issue?.reporterId === user?.id;
 
   const projectMembers: IssueUser[] = (project?.members ?? []).map((m) => m.user);
 

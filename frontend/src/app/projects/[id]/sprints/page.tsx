@@ -23,7 +23,12 @@ export default function SprintsPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const isManager = canManageSprints(user);
+  const { data: project } = useQuery({
+    queryKey: ['project', projectId],
+    queryFn: () => projectsApi.get(projectId),
+  });
+
+  const isManager = canManageSprints(user, project);
 
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
@@ -31,11 +36,6 @@ export default function SprintsPage() {
   const [endDate, setEndDate] = useState('');
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
-
-  const { data: project } = useQuery({
-    queryKey: ['project', projectId],
-    queryFn: () => projectsApi.get(projectId),
-  });
 
   const {
     data: sprints = [],

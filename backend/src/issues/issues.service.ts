@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
+import { TeamLeadService } from '../common/team-lead.service';
 import { CreateIssueDto, UpdateIssueDto } from './dto/issue.dto';
 import { randomBytes } from 'crypto';
 
@@ -61,6 +62,7 @@ export class IssuesService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
+    private readonly teamLead: TeamLeadService,
   ) {}
 
   private async assertProjectAccess(
@@ -155,14 +157,17 @@ export class IssuesService {
     await this.assertProjectAccess(before.projectId, userId, userRole);
 
     const isAdmin = userRole === 'ADMIN' || userRole === 'SUPERADMIN';
+    const isProjectLead = await this.teamLead.isProjectTeamLead(userId, before.projectId);
     const isReporter = before.reporterId === userId;
     const isAssignee = before.assigneeId === userId;
     const isUnassigned = before.assigneeId === null;
 
-    // For status-only updates: assignee, reporter, admin, OR any project member
+    // Team Leads can fully edit all issues in their project, same as admins.
+    const canFullEdit = isAdmin || isProjectLead || isReporter;
+
+    // For status-only updates: assignee, reporter, admin, team lead, OR any member
     // if the issue is unassigned (so members can self-assign/claim tasks).
-    // For full edits: only reporter or admin.
-    const canUpdateStatus = isAdmin || isReporter || isAssignee || isUnassigned;
+    const canUpdateStatus = canFullEdit || isAssignee || isUnassigned;
 
     if (!canUpdateStatus) {
       throw new ForbiddenException(
@@ -170,8 +175,8 @@ export class IssuesService {
       );
     }
 
-    // Non-admins who are not the reporter may only update status.
-    if (!isAdmin && !isReporter) {
+    // Non-admins / non-leads who are not the reporter may only update status.
+    if (!isAdmin && !isProjectLead && !isReporter) {
       const { status, ...otherFields } = dto;
       const hasOtherChanges = Object.keys(otherFields).some(
         (k) => (otherFields as any)[k] !== undefined,
@@ -246,13 +251,13 @@ export class IssuesService {
     const issue = await this.prisma.issue.findUnique({ where: { id } });
     if (!issue) throw new NotFoundException(`Issue ${id} not found`);
     await this.assertProjectAccess(issue.projectId, userId, userRole);
-    if (
-      issue.reporterId !== userId &&
-      userRole !== 'ADMIN' &&
-      userRole !== 'SUPERADMIN'
-    ) {
+
+    const isAdmin = userRole === 'ADMIN' || userRole === 'SUPERADMIN';
+    const isProjectLead = await this.teamLead.isProjectTeamLead(userId, issue.projectId);
+
+    if (!isAdmin && !isProjectLead && issue.reporterId !== userId) {
       throw new ForbiddenException(
-        'Only the reporter or an admin can delete this issue',
+        'Only the reporter, a team lead, or an admin can delete this issue',
       );
     }
 

@@ -7,7 +7,7 @@ import { boardApi, BoardColumns } from '@/lib/board-api';
 import { projectsApi } from '@/lib/projects-api';
 import { useAuth } from '@/lib/auth-context';
 import { canUpdateIssueStatus } from '@/lib/permissions';
-import { Issue, IssueStatus } from '@/types';
+import { Issue, IssueStatus, Project } from '@/types';
 import { PriorityBadge, TypeBadge, DeadlineBadge } from '@/components/ui/Badge';
 import { formatDistanceToNow } from 'date-fns';
 import { useShortcut } from '@/lib/keyboard-shortcuts';
@@ -143,7 +143,7 @@ export default function BoardPage() {
       }
 
       // Check permission before attempting the update
-      if (!canUpdateIssueStatus(user, drag.issue)) {
+      if (!canUpdateIssueStatus(user, drag.issue, project)) {
         dragIssueRef.current = null;
         setDragError('You can only move issues you reported or are assigned to');
         return;
@@ -291,6 +291,7 @@ export default function BoardPage() {
               router.push(`/projects/${projectId}/issues/${issue.id}`)
             }
             currentUser={user}
+            project={project}
           />
         ))}
       </div>
@@ -312,6 +313,7 @@ interface ColumnProps {
   onDragEnd: () => void;
   onIssueClick: (issue: Issue) => void;
   currentUser: ReturnType<typeof useAuth>['user'];
+  project: Project | undefined;
 }
 
 function Column({
@@ -326,6 +328,7 @@ function Column({
   onDragEnd,
   onIssueClick,
   currentUser,
+  project,
 }: ColumnProps) {
   return (
     <div
@@ -348,7 +351,7 @@ function Column({
             key={issue.id}
             issue={issue}
             status={status}
-            canDrag={canUpdateIssueStatus(currentUser, issue)}
+            canDrag={canUpdateIssueStatus(currentUser, issue, project)}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             onClick={() => onIssueClick(issue)}

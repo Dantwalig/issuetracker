@@ -11,6 +11,7 @@ datasource db {
 enum Role {
   SUPERADMIN
   ADMIN
+  TEAM_LEAD
   MEMBER
 }
 
@@ -125,14 +126,16 @@ model Team {
 }
 
 model TeamMember {
-  teamId    String
-  userId    String
-  createdAt DateTime @default(now())
+  teamId     String
+  userId     String
+  scopedRole String?
+  createdAt  DateTime @default(now())
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([teamId, userId])
+  @@index([teamId, scopedRole])
   @@map("team_members")
 }
 
@@ -157,14 +160,16 @@ model Project {
 }
 
 model ProjectMember {
-  projectId String
-  userId    String
-  createdAt DateTime @default(now())
+  projectId  String
+  userId     String
+  scopedRole String?
+  createdAt  DateTime @default(now())
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([projectId, userId])
+  @@index([projectId, scopedRole])
   @@map("project_members")
 }
 

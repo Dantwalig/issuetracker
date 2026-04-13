@@ -15,11 +15,15 @@ import { CreateTeamDto, UpdateTeamDto, AddTeamMemberDto } from './dto/team.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { TeamLeadService } from '../common/team-lead.service';
 
 @Controller('teams')
 @UseGuards(JwtAuthGuard)
 export class TeamsController {
-  constructor(private readonly teamsService: TeamsService) {}
+  constructor(
+    private readonly teamsService: TeamsService,
+    private readonly teamLeadService: TeamLeadService,
+  ) {}
 
   @Post()
   @UseGuards(AdminGuard)
@@ -61,5 +65,29 @@ export class TeamsController {
   @HttpCode(HttpStatus.OK)
   removeMember(@Param('id') id: string, @Param('userId') userId: string) {
     return this.teamsService.removeMember(id, userId);
+  }
+
+  // ── Team Lead management (admin only) ──────────────────────────────────
+
+  /** Promote a team member to Team Lead for this team. */
+  @Post(':id/members/:userId/team-lead')
+  @UseGuards(AdminGuard)
+  @HttpCode(HttpStatus.OK)
+  promoteToTeamLead(
+    @Param('id') teamId: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.teamLeadService.setTeamTeamLead(teamId, userId);
+  }
+
+  /** Revoke Team Lead role from a team member. */
+  @Delete(':id/members/:userId/team-lead')
+  @UseGuards(AdminGuard)
+  @HttpCode(HttpStatus.OK)
+  revokeTeamLead(
+    @Param('id') teamId: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.teamLeadService.removeTeamTeamLead(teamId, userId);
   }
 }
