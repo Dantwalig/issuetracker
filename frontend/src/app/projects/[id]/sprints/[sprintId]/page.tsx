@@ -22,7 +22,6 @@ export default function SprintDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const isManager = canManageSprints(user);
 
   const [showEdit, setShowEdit] = useState(false);
   const [editName, setEditName] = useState('');
@@ -37,6 +36,8 @@ export default function SprintDetailPage() {
     queryKey: ['project', projectId],
     queryFn: () => projectsApi.get(projectId),
   });
+
+  const isManager = canManageSprints(user, project);
 
   const {
     data: sprint,

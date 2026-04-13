@@ -50,6 +50,16 @@ export default function TeamDetailPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['team', id] }),
   });
 
+  const promoteTeamLeadMutation = useMutation({
+    mutationFn: (userId: string) => teamsApi.promoteToTeamLead(id, userId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['team', id] }),
+  });
+
+  const revokeTeamLeadMutation = useMutation({
+    mutationFn: (userId: string) => teamsApi.revokeTeamLead(id, userId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['team', id] }),
+  });
+
   const updateMutation = useMutation({
     mutationFn: (data: { name: string; description?: string }) => teamsApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['team', id] }); qc.invalidateQueries({ queryKey: ['teams'] }); setShowEdit(false); },
@@ -121,6 +131,27 @@ export default function TeamDetailPage() {
                   <span className={styles.memberEmail}>{m.user?.email}</span>
                 </div>
                 <span className={styles.memberRole}>{m.user?.role}</span>
+                {m.scopedRole === 'TEAM_LEAD' && (
+                  <span style={{ fontSize: 11, fontWeight: 600, background: 'var(--accent, #6366f1)', color: '#fff', borderRadius: 4, padding: '2px 7px', marginLeft: 4 }}>
+                    Team Lead
+                  </span>
+                )}
+                {isAdmin && m.scopedRole !== 'TEAM_LEAD' && (
+                  <button
+                    className={styles.removeBtn}
+                    style={{ background: 'none', border: '1px solid var(--accent, #6366f1)', color: 'var(--accent, #6366f1)', marginLeft: 4 }}
+                    onClick={() => promoteTeamLeadMutation.mutate(m.user?.id)}
+                    disabled={promoteTeamLeadMutation.isPending}
+                  >Make Lead</button>
+                )}
+                {isAdmin && m.scopedRole === 'TEAM_LEAD' && (
+                  <button
+                    className={styles.removeBtn}
+                    style={{ background: 'none', border: '1px solid #f59e0b', color: '#f59e0b', marginLeft: 4 }}
+                    onClick={() => revokeTeamLeadMutation.mutate(m.user?.id)}
+                    disabled={revokeTeamLeadMutation.isPending}
+                  >Revoke Lead</button>
+                )}
                 {isAdmin && (
                   <button
                     className={styles.removeBtn}

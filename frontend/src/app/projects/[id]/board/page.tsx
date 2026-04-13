@@ -143,7 +143,7 @@ export default function BoardPage() {
       }
 
       // Check permission before attempting the update
-      if (!canUpdateIssueStatus(user, drag.issue)) {
+      if (!canUpdateIssueStatus(user, drag.issue, project)) {
         dragIssueRef.current = null;
         setDragError('You can only move issues you reported or are assigned to');
         return;
@@ -348,7 +348,7 @@ function Column({
             key={issue.id}
             issue={issue}
             status={status}
-            canDrag={canUpdateIssueStatus(currentUser, issue)}
+            canDrag={canUpdateIssueStatus(currentUser, issue, project)}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             onClick={() => onIssueClick(issue)}

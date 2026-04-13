@@ -21,6 +21,7 @@ const projectSelect = {
   members: {
     select: {
       user: { select: { id: true, fullName: true, email: true, role: true } },
+      scopedRole: true,
       createdAt: true,
     },
   },

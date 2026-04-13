@@ -12,4 +12,11 @@ export const teamsApi = {
     api.post<Team>(`/teams/${id}/members`, { userId }).then((r) => r.data),
   removeMember: (id: string, userId: string) =>
     api.delete<Team>(`/teams/${id}/members/${userId}`).then((r) => r.data),
+  /** Promote a team member to Team Lead for this team (admin only) */
+  promoteToTeamLead: (teamId: string, userId: string) =>
+    api.post(`/teams/${teamId}/members/${userId}/team-lead`).then((r) => r.data),
+  /** Revoke Team Lead from a team member (admin only) */
+  revokeTeamLead: (teamId: string, userId: string) =>
+    api.delete(`/teams/${teamId}/members/${userId}/team-lead`).then((r) => r.data),
 };
+

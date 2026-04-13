@@ -40,8 +40,11 @@ export interface IssueUser {
   email: string;
 }
 
+export type ScopedRole = 'TEAM_LEAD' | null;
+
 export interface TeamMemberEntry {
   user: IssueUser & { role: Role };
+  scopedRole?: ScopedRole;
   createdAt: string;
 }
 
@@ -57,6 +60,7 @@ export interface Team {
 
 export interface ProjectMemberEntry {
   user: IssueUser & { role: Role };
+  scopedRole?: ScopedRole;
   createdAt: string;
 }
 
