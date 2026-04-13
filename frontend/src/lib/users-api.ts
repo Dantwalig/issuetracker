@@ -4,7 +4,7 @@ import { User, Role } from '@/types';
 export interface CreateUserPayload {
   email: string;
   fullName: string;
-  role?: 'ADMIN' | 'MEMBER';
+  role?: 'ADMIN' | 'TEAM_LEAD' | 'MEMBER';
 }
 
 export const usersApi = {
