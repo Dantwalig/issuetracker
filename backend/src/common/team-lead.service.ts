@@ -7,6 +7,11 @@
  *
  * All checks are read-only queries against existing tables.
  * Nothing here modifies the User.role field.
+ *
+ * Note: `as any` casts below are intentional — they allow the code to compile
+ * before `prisma generate` has been run with the latest schema (which adds
+ * `scopedRole` to the generated types). After running `prisma generate` the
+ * casts are harmless.
  */
 
 import { Injectable } from '@nestjs/common';
@@ -20,7 +25,7 @@ export class TeamLeadService {
 
   /** True when the user is a Team Lead for the given project. */
   async isProjectTeamLead(userId: string, projectId: string): Promise<boolean> {
-    const membership = await this.prisma.projectMember.findUnique({
+    const membership = await (this.prisma.projectMember.findUnique as any)({
       where: { projectId_userId: { projectId, userId } },
       select: { scopedRole: true },
     });
@@ -29,7 +34,7 @@ export class TeamLeadService {
 
   /** True when the user is a Team Lead for the given team. */
   async isTeamTeamLead(userId: string, teamId: string): Promise<boolean> {
-    const membership = await this.prisma.teamMember.findUnique({
+    const membership = await (this.prisma.teamMember.findUnique as any)({
       where: { teamId_userId: { teamId, userId } },
       select: { scopedRole: true },
     });
@@ -64,28 +69,28 @@ export class TeamLeadService {
   // ── Promote / demote helpers (used by admin endpoints) ──────────────────
 
   async setProjectTeamLead(projectId: string, userId: string): Promise<void> {
-    await this.prisma.projectMember.update({
+    await (this.prisma.projectMember.update as any)({
       where: { projectId_userId: { projectId, userId } },
       data: { scopedRole: TEAM_LEAD_ROLE },
     });
   }
 
   async removeProjectTeamLead(projectId: string, userId: string): Promise<void> {
-    await this.prisma.projectMember.update({
+    await (this.prisma.projectMember.update as any)({
       where: { projectId_userId: { projectId, userId } },
       data: { scopedRole: null },
     });
   }
 
   async setTeamTeamLead(teamId: string, userId: string): Promise<void> {
-    await this.prisma.teamMember.update({
+    await (this.prisma.teamMember.update as any)({
       where: { teamId_userId: { teamId, userId } },
       data: { scopedRole: TEAM_LEAD_ROLE },
     });
   }
 
   async removeTeamTeamLead(teamId: string, userId: string): Promise<void> {
-    await this.prisma.teamMember.update({
+    await (this.prisma.teamMember.update as any)({
       where: { teamId_userId: { teamId, userId } },
       data: { scopedRole: null },
     });

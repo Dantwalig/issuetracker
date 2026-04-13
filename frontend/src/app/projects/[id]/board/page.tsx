@@ -7,7 +7,7 @@ import { boardApi, BoardColumns } from '@/lib/board-api';
 import { projectsApi } from '@/lib/projects-api';
 import { useAuth } from '@/lib/auth-context';
 import { canUpdateIssueStatus } from '@/lib/permissions';
-import { Issue, IssueStatus } from '@/types';
+import { Issue, IssueStatus, Project } from '@/types';
 import { PriorityBadge, TypeBadge, DeadlineBadge } from '@/components/ui/Badge';
 import { formatDistanceToNow } from 'date-fns';
 import { useShortcut } from '@/lib/keyboard-shortcuts';
@@ -291,6 +291,7 @@ export default function BoardPage() {
               router.push(`/projects/${projectId}/issues/${issue.id}`)
             }
             currentUser={user}
+            project={project}
           />
         ))}
       </div>
@@ -312,6 +313,7 @@ interface ColumnProps {
   onDragEnd: () => void;
   onIssueClick: (issue: Issue) => void;
   currentUser: ReturnType<typeof useAuth>['user'];
+  project: Project | undefined;
 }
 
 function Column({
@@ -326,6 +328,7 @@ function Column({
   onDragEnd,
   onIssueClick,
   currentUser,
+  project,
 }: ColumnProps) {
   return (
     <div

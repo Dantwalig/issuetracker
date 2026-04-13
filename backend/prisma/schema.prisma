@@ -128,7 +128,7 @@ model Team {
 model TeamMember {
   teamId     String
   userId     String
-  scopedRole String?  @default(null)
+  scopedRole String?
   createdAt  DateTime @default(now())
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -162,7 +162,7 @@ model Project {
 model ProjectMember {
   projectId  String
   userId     String
-  scopedRole String?  @default(null)
+  scopedRole String?
   createdAt  DateTime @default(now())
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)

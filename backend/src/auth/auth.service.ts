@@ -221,7 +221,7 @@ export class AuthService {
         email: dto.email,
         fullName: dto.fullName,
         passwordHash,
-        role: dto.role ?? Role.MEMBER,
+        role: (dto.role ?? Role.MEMBER) as Role,
         mustChangePassword: true,
       },
     });
