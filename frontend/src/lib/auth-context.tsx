@@ -45,11 +45,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
+  // Listen for the soft-logout event dispatched by the axios interceptor.
+  // Using router.push() instead of window.location.href keeps the React
+  // tree alive and preserves client-side navigation.
+  useEffect(() => {
+    function handleAuthLogout() {
+      setUser(null);
+      router.push('/login');
+    }
+    window.addEventListener('auth:logout', handleAuthLogout);
+    return () => window.removeEventListener('auth:logout', handleAuthLogout);
+  }, [router]);
+
   async function login(email: string, password: string) {
-    const { data } = await api.post<{ accessToken: string; refreshToken: string; user: User & { mustChangePassword?: boolean } }>('/auth/login', {
-      email,
-      password,
-    });
+    const { data } = await api.post<{
+      accessToken: string;
+      refreshToken: string;
+      user: User & { mustChangePassword?: boolean };
+    }>('/auth/login', { email, password });
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user as User);

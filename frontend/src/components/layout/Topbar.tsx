@@ -14,6 +14,7 @@ export function Topbar() {
     queryKey: ['notifications-unread'],
     queryFn: notificationsApi.unreadCount,
     refetchInterval: 30_000,
+    enabled: !!user, // only poll when authenticated — prevents spurious 401s
   });
 
   return (

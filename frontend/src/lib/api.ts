@@ -17,6 +17,18 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+/**
+ * Dispatch a custom event so AuthProvider can handle logout via
+ * Next.js router.push() instead of a hard window.location.href reload,
+ * which was destroying the React tree and freezing client-side navigation.
+ */
+function softRedirectToLogin() {
+  if (typeof window !== 'undefined') {
+    localStorage.clear();
+    window.dispatchEvent(new Event('auth:logout'));
+  }
+}
+
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -26,8 +38,7 @@ api.interceptors.response.use(
       original._retry = true;
       const refreshToken = localStorage.getItem('refreshToken');
       if (!refreshToken) {
-        localStorage.clear();
-        window.location.href = '/login';
+        softRedirectToLogin();
         return Promise.reject(error);
       }
 
@@ -38,8 +49,7 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${data.accessToken}`;
         return api(original);
       } catch {
-        localStorage.clear();
-        window.location.href = '/login';
+        softRedirectToLogin();
         return Promise.reject(error);
       }
     }
