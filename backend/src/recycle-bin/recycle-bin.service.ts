@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { EmailService } from '../email/email.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DeletedItemType, RecycleBinStatus, Role } from '@prisma/client';
 
@@ -18,7 +17,6 @@ function isPrivileged(role: string) {
 export class RecycleBinService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly email: EmailService,
     private readonly notifications: NotificationsService,
   ) {}
 
@@ -282,45 +280,17 @@ export class RecycleBinService {
   ) {
     const deleter = await this.prisma.user.findUnique({ where: { id: deletedById }, select: { fullName: true } });
     const deleterName = deleter?.fullName ?? 'An administrator';
-
-    const recipients = creator?.isActive ? [creator] : members.filter(m => m.isActive && m.id !== deletedById);
-
+    const recipients = creator?.isActive ? [creator] : members.filter((m) => m.isActive && m.id !== deletedById);
     for (const recipient of recipients) {
       await this.notifications.create({
         userId: recipient.id,
         type: 'DELETION_NOTICE',
         title: `${itemType} deleted`,
         message: `${deleterName} deleted ${itemType.toLowerCase()} "${itemName}". Reason: ${reason}`,
-      });
-
-      void this.email.send({
-        to: recipient.email,
-        subject: `Your ${itemType.toLowerCase()} "${itemName}" was deleted`,
-        html: `
-          <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
-            <h2 style="color:#111;margin-top:0;">${itemType} Deleted</h2>
-            <p style="color:#444;line-height:1.6;">Hi ${recipient.fullName},</p>
-            <p style="color:#444;line-height:1.6;">
-              <strong>${deleterName}</strong> has deleted the ${itemType.toLowerCase()} 
-              "<strong>${itemName}</strong>".
-            </p>
-            <div style="background:#f5f5f5;border-radius:8px;padding:16px 20px;margin:20px 0;">
-              <p style="margin:0 0 4px;color:#666;font-size:13px;text-transform:uppercase;">Reason</p>
-              <p style="margin:0;color:#111;">${this.escapeHtml(reason)}</p>
-            </div>
-            <p style="color:#444;line-height:1.6;">
-              This item has been moved to the recycle bin and can be restored within 30 days.
-            </p>
-            <div style="text-align:center;margin:28px 0;">
-              <a href="https://trackr.ubwengelab.rw/recycle-bin"
-                 style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;
-                        padding:12px 28px;border-radius:8px;font-size:15px;font-weight:600;">
-                View Recycle Bin
-              </a>
-            </div>
-          </div>`,
+        emailContext: { senderName: deleterName },
       });
     }
+  }
   }
 
   private async _restoreIssue(snap: any) {
@@ -447,12 +417,4 @@ export class RecycleBinService {
     });
   }
 
-  private escapeHtml(text: string): string {
-    return (text || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
 }

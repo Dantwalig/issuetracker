@@ -1,8 +1,48 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { EmailService } from '../email/email.service';
 import { NotificationsService } from '../notifications/notifications.service';
+
+/**
+ * Deadline reminder stages.
+ * The cron runs every 30 minutes and checks all four windows each time.
+ * A DeadlineReminder row is inserted per (issue, stage) to prevent double-sends,
+ * even if the cron fires multiple times inside a window.
+ */
+const STAGES = [
+  {
+    key: 'TWO_DAYS' as const,
+    label: '2 days',
+    title: 'Issue deadline in 2 days',
+    emailTitle: 'Deadline in 2 days',
+    minHours: 47,  // window: 47h – 49h before deadline
+    maxHours: 49,
+  },
+  {
+    key: 'ONE_DAY' as const,
+    label: '24 hours',
+    title: 'Issue deadline in 24 hours',
+    emailTitle: 'Deadline Tomorrow',
+    minHours: 23,  // window: 23h – 25h
+    maxHours: 25,
+  },
+  {
+    key: 'THREE_HOURS' as const,
+    label: '3 hours',
+    title: 'Issue deadline in 3 hours',
+    emailTitle: 'Deadline in 3 hours',
+    minHours: 2.5,   // window: 2.5h – 3.5h
+    maxHours: 3.5,
+  },
+  {
+    key: 'AT_DEADLINE' as const,
+    label: 'now',
+    title: 'Issue deadline has arrived',
+    emailTitle: 'Deadline reached',
+    minHours: -1,    // window: up to 1h past deadline
+    maxHours: 0.5,   // and up to 30 min before
+  },
+] as const;
 
 @Injectable()
 export class DeadlineService {
@@ -10,85 +50,72 @@ export class DeadlineService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly email: EmailService,
     private readonly notifications: NotificationsService,
   ) {}
 
-  /** Escape user-controlled strings before interpolating them into HTML email bodies. */
-  private escapeHtml(value: string | null | undefined): string {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  @Cron(CronExpression.EVERY_HOUR)
+  /** Runs every 30 minutes — checks all four reminder stages */
+  @Cron('0,30 * * * *')
   async sendDeadlineReminders() {
     const now = new Date();
-    const in23h = new Date(now.getTime() + 23 * 60 * 60 * 1000);
-    const in25h = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+    let totalSent = 0;
 
-    // Wider 23-25h window so a single skipped/delayed run won't silently miss issues.
-    // reminderSentAt guards against double-sending when the window overlaps across runs.
-    const issues = await this.prisma.issue.findMany({
-      where: {
-        deadline: { gte: in23h, lt: in25h },
-        status: { not: 'DONE' },
-        reminderSentAt: null,
-      },
-      include: {
-        assignee: { select: { id: true, email: true, fullName: true, isActive: true } },
-        reporter: { select: { id: true, email: true, fullName: true, isActive: true } },
-        project: { select: { name: true } },
-      },
-    });
+    for (const stage of STAGES) {
+      const windowStart = new Date(now.getTime() + stage.minHours * 60 * 60 * 1000);
+      const windowEnd   = new Date(now.getTime() + stage.maxHours * 60 * 60 * 1000);
 
-    for (const issue of issues) {
-      // Filter out null/undefined and deactivated users before sending reminders
-      const recipients = [issue.assignee, issue.reporter].filter(
-        (user): user is NonNullable<typeof issue.assignee> => Boolean(user && user.isActive),
-      );
-      const unique = [...new Map(recipients.map(r => [r.id, r])).values()];
+      // For AT_DEADLINE, windowStart is negative (past deadline), so swap the gte/lte
+      const deadlineFilter = stage.key === 'AT_DEADLINE'
+        ? { gte: windowStart, lte: windowEnd }  // -1h ago ≤ deadline ≤ +30min from now
+        : { gte: windowStart, lt:  windowEnd };
 
-      for (const user of unique) {
-        await this.notifications.create({
-          userId: user.id,
-          type: 'DEADLINE_REMINDER',
-          title: 'Issue deadline in 24 hours',
-          message: `"${issue.title}" in ${issue.project.name} is due in 24 hours.`,
-          issueId: issue.id,
-        });
-
-        const safeName = this.escapeHtml(user.fullName);
-        const safeTitle = this.escapeHtml(issue.title);
-        const safeProject = this.escapeHtml(issue.project.name);
-
-        void this.email.send({
-          to: user.email,
-          subject: `Deadline reminder: "${issue.title}"`,
-          html: `
-            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
-              <h2 style="margin-top:0;">&#9200; Deadline in 24 hours</h2>
-              <p>Hi ${safeName},</p>
-              <p>The issue <strong>"${safeTitle}"</strong> in project <strong>${safeProject}</strong>
-              is due in <strong>24 hours</strong>.</p>
-              <a href="https://trackr.ubwengelab.rw"
-                 style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">
-                View Issue
-              </a>
-            </div>`,
-        });
-      }
-
-      // Mark reminder as sent so a subsequent overlapping cron run won't re-send
-      await this.prisma.issue.update({
-        where: { id: issue.id },
-        data: { reminderSentAt: new Date() },
+      const issues = await this.prisma.issue.findMany({
+        where: {
+          deadline: deadlineFilter,
+          status: { not: 'DONE' },
+          // Exclude issues that already had this stage sent
+          deadlineReminders: { none: { stage: stage.key } },
+        },
+        include: {
+          assignee: { select: { id: true, email: true, fullName: true, isActive: true } },
+          reporter: { select: { id: true, email: true, fullName: true, isActive: true } },
+          project:  { select: { id: true, name: true } },
+        },
       });
+
+      for (const issue of issues) {
+        const recipients = [issue.assignee, issue.reporter]
+          .filter((u): u is NonNullable<typeof u> => Boolean(u?.isActive));
+        const unique = [...new Map(recipients.map((r) => [r.id, r])).values()];
+
+        for (const user of unique) {
+          const message = `"${issue.title}" in ${issue.project.name} is due in ${stage.label}.`;
+          const overdueMessage = `"${issue.title}" in ${issue.project.name} deadline has arrived — please update the issue status.`;
+
+          await this.notifications.create({
+            userId:    user.id,
+            type:      'DEADLINE_REMINDER',
+            title:     stage.title,
+            message:   stage.key === 'AT_DEADLINE' ? overdueMessage : message,
+            issueId:   issue.id,
+            projectId: issue.project.id,
+            emailContext: {
+              issueTitle:  issue.title,
+              projectName: issue.project.name,
+            },
+          });
+        }
+
+        // Mark this stage as sent so re-runs don't double-notify
+        await this.prisma.deadlineReminder.create({
+          data: { issueId: issue.id, stage: stage.key },
+        });
+
+        totalSent += unique.length;
+      }
     }
 
-    this.logger.log(`Sent deadline reminders for ${issues.length} issues`);
+    if (totalSent > 0) {
+      this.logger.log(`Deadline reminders: sent ${totalSent} notification(s) across all stages`);
+    }
   }
 }

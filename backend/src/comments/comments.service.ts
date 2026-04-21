@@ -146,6 +146,7 @@ export class CommentsService {
           message: `${author.fullName}: ${preview}`,
           issueId: issue.id,
           projectId: issue.projectId,
+          emailContext: { senderName: author.fullName, issueTitle: issue.title, projectName: issue.project?.name },
         })),
       );
     }
@@ -162,6 +163,7 @@ export class CommentsService {
             message: `${author.fullName} mentioned you: ${preview}`,
             issueId: issue.id,
             projectId: issue.projectId,
+            emailContext: { senderName: author.fullName, issueTitle: issue.title, projectName: issue.project?.name },
           })),
       );
     }

@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Delete, Body, Param, UseGuards, HttpCode, HttpStatus,
+  Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/message.dto';
@@ -36,6 +36,15 @@ export class MessagesController {
     @Body() dto: CreateMessageDto,
   ) {
     return this.messagesService.sendMessage(user.id, partnerId, dto);
+  }
+
+  @Patch(':id')
+  editMessage(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string },
+    @Body('body') body: string,
+  ) {
+    return this.messagesService.editMessage(id, user.id, body);
   }
 
   @Delete(':id')
