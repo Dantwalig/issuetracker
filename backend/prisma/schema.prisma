@@ -106,6 +106,11 @@ model User {
   sentMessages      DirectMessage[]   @relation("MessageSender")
   receivedMessages  DirectMessage[]   @relation("MessageReceiver")
   activityLogs      ActivityLog[]
+  createdGroups     GroupChat[]       @relation("GroupCreator")
+  groupMemberships  GroupMember[]     @relation("GroupMemberships")
+  groupMessages     GroupMessage[]    @relation("GroupMessageSender")
+  groupInvitesInitiated GroupInviteRequest[] @relation("GroupInviteInitiator")
+  groupInvitesReceived  GroupInviteRequest[] @relation("GroupInviteInvitee")
 
   @@map("users")
 }
@@ -323,6 +328,7 @@ model DirectMessage {
   receiverId  String
   body        String
   isRead      Boolean  @default(false)
+  editedAt    DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -332,6 +338,100 @@ model DirectMessage {
   @@index([senderId, receiverId])
   @@index([receiverId, isRead])
   @@map("direct_messages")
+}
+
+// ── Group Chats ──────────────────────────────────────────────────────────────
+
+enum GroupMemberRole {
+  ADMIN
+  MEMBER
+}
+
+enum GroupInviteStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model GroupChat {
+  id          String   @id @default(cuid())
+  name        String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy    User              @relation("GroupCreator", fields: [createdById], references: [id])
+  members      GroupMember[]
+  messages     GroupMessage[]
+  inviteRequests GroupInviteRequest[]
+
+  @@map("group_chats")
+}
+
+model GroupMember {
+  id          String          @id @default(cuid())
+  groupId     String
+  userId      String
+  role        GroupMemberRole @default(MEMBER)
+  joinedAt    DateTime        @default(now())
+
+  group GroupChat @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User      @relation("GroupMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  approvals GroupInviteApproval[]
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+model GroupMessage {
+  id        String    @id @default(cuid())
+  groupId   String
+  senderId  String
+  body      String
+  editedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  group  GroupChat @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sender User      @relation("GroupMessageSender", fields: [senderId], references: [id])
+
+  @@index([groupId, createdAt])
+  @@map("group_messages")
+}
+
+model GroupInviteRequest {
+  id            String            @id @default(cuid())
+  groupId       String
+  initiatorId   String
+  inviteeId     String
+  status        GroupInviteStatus @default(PENDING)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  group     GroupChat             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  initiator User                  @relation("GroupInviteInitiator", fields: [initiatorId], references: [id])
+  invitee   User                  @relation("GroupInviteInvitee",   fields: [inviteeId],   references: [id])
+  approvals GroupInviteApproval[]
+
+  @@map("group_invite_requests")
+}
+
+model GroupInviteApproval {
+  id        String            @id @default(cuid())
+  requestId String
+  memberId  String
+  status    GroupInviteStatus @default(PENDING)
+  reason    String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  request GroupInviteRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  member  GroupMember        @relation(fields: [memberId],  references: [id], onDelete: Cascade)
+
+  @@unique([requestId, memberId])
+  @@map("group_invite_approvals")
 }
 
 model ActivityLog {

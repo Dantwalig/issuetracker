@@ -90,6 +90,26 @@ export class MessagesService {
     return message;
   }
 
+  /** Edit a DM (sender only, within 15 min) */
+  async editMessage(messageId: string, userId: string, body: string) {
+    const message = await this.prisma.directMessage.findUnique({ where: { id: messageId } });
+    if (!message || message.senderId !== userId) {
+      throw new ForbiddenException('Cannot edit this message');
+    }
+    const ageMs = Date.now() - new Date(message.createdAt).getTime();
+    if (ageMs > 15 * 60 * 1000) {
+      throw new ForbiddenException('Messages can only be edited within 15 minutes of sending');
+    }
+    return this.prisma.directMessage.update({
+      where: { id: messageId },
+      data: { body, editedAt: new Date() },
+      include: {
+        sender: { select: { id: true, fullName: true, email: true, avatarUrl: true } },
+        receiver: { select: { id: true, fullName: true, email: true, avatarUrl: true } },
+      },
+    });
+  }
+
   /** Delete a message (sender only) */
   async deleteMessage(messageId: string, userId: string) {
     const message = await this.prisma.directMessage.findUnique({
