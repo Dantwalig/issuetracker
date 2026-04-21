@@ -291,7 +291,6 @@ export class RecycleBinService {
       });
     }
   }
-  }
 
   private async _restoreIssue(snap: any) {
     await this.prisma.issue.create({
