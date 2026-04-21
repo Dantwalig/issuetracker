@@ -91,3 +91,25 @@ CREATE TABLE "group_invite_approvals" (
     CONSTRAINT "group_invite_approvals_memberId_fkey"
         FOREIGN KEY ("memberId") REFERENCES "group_members"("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+-- ── Deadline reminder stage tracking ─────────────────────────────────────────
+
+CREATE TYPE "DeadlineReminderStage" AS ENUM ('TWO_DAYS', 'ONE_DAY', 'THREE_HOURS', 'AT_DEADLINE');
+
+CREATE TABLE "deadline_reminders" (
+    "id"      TEXT NOT NULL,
+    "issueId" TEXT NOT NULL,
+    "stage"   "DeadlineReminderStage" NOT NULL,
+    "sentAt"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "deadline_reminders_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "deadline_reminders_issueId_stage_key" UNIQUE ("issueId", "stage"),
+    CONSTRAINT "deadline_reminders_issueId_fkey"
+        FOREIGN KEY ("issueId") REFERENCES "issues"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- Migrate existing reminderSentAt data → TWO_DAYS stage (closest to the old 24h reminder)
+INSERT INTO "deadline_reminders" ("id", "issueId", "stage", "sentAt")
+SELECT gen_random_uuid()::text, "id", 'ONE_DAY', "reminderSentAt"
+FROM "issues"
+WHERE "reminderSentAt" IS NOT NULL;

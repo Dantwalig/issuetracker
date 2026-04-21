@@ -118,6 +118,7 @@ export class IssuesService {
         message: `You were assigned to "${issue.title}" in ${issue.project?.name ?? 'a project'}`,
         issueId: issue.id,
         projectId: issue.projectId,
+        emailContext: { issueTitle: issue.title, projectName: issue.project?.name },
       });
     }
 
@@ -216,6 +217,7 @@ export class IssuesService {
         message: `You were assigned to "${issue.title}" in ${issue.project?.name ?? 'a project'}`,
         issueId: issue.id,
         projectId: issue.projectId,
+        emailContext: { issueTitle: issue.title, projectName: issue.project?.name },
       });
       this.activity.log({
         projectId: issue.projectId,

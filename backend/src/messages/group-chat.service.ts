@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateGroupDto, SendGroupMessageDto, EditMessageDto, InviteToGroupDto } from './dto/group.dto';
 
 // Role rank for determining group admin
@@ -26,7 +27,10 @@ const USER_SELECT = {
 
 @Injectable()
 export class GroupChatService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -140,6 +144,24 @@ export class GroupChatService {
       where: { id: groupId },
       data: { updatedAt: new Date() },
     });
+
+    // Notify all other members — fire-and-forget
+    const otherMembers = await this.prisma.groupMember.findMany({
+      where: { groupId, userId: { not: senderId } },
+      include: { user: { select: { id: true } } },
+    });
+    const group = await this.prisma.groupChat.findUnique({ where: { id: groupId }, select: { name: true } });
+    const preview = dto.body.length > 120 ? dto.body.slice(0, 120) + '…' : dto.body;
+
+    void this.notifications.createMany(
+      otherMembers.map((m) => ({
+        userId:  m.userId,
+        type:    'DIRECT_MESSAGE' as const,
+        title:   `New message in ${group?.name ?? 'group chat'}`,
+        message: `${msg.sender.fullName}: ${preview}`,
+        emailContext: { senderName: msg.sender.fullName },
+      })),
+    );
 
     return msg;
   }

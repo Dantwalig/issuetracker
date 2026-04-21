@@ -209,6 +209,7 @@ export class SprintsService {
         title: `Sprint "${sprint.name}" started`,
         message: `Sprint "${sprint.name}" is now active in ${project?.name ?? 'your project'}`,
         projectId: sprint.projectId,
+        emailContext: { projectName: project?.name },
       })),
     );
 
@@ -264,6 +265,7 @@ export class SprintsService {
         title: `Sprint "${sprint.name}" completed`,
         message: `Sprint "${sprint.name}" has been completed in ${project?.name ?? 'your project'}. ${unfinished.length} issue(s) returned to backlog.`,
         projectId: sprint.projectId,
+        emailContext: { projectName: project?.name },
       })),
     );
 

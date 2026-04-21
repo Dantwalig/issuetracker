@@ -4,9 +4,10 @@ import { MessagesService } from './messages.service';
 import { GroupChatController } from './group-chat.controller';
 import { GroupChatService } from './group-chat.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, NotificationsModule],
   controllers: [MessagesController, GroupChatController],
   providers: [MessagesService, GroupChatService],
   exports: [MessagesService, GroupChatService],

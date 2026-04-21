@@ -250,6 +250,7 @@ model Issue {
   checklists Checklist[]
   deletionRequests DeletionRequest[]
   activityLogs ActivityLog[]
+  deadlineReminders DeadlineReminder[]
 
   @@map("issues")
 }
@@ -523,4 +524,25 @@ model RestoreRequest {
   respondedBy  User?       @relation("RestoreResponder", fields: [respondedById], references: [id])
 
   @@map("restore_requests")
+}
+
+// ── Deadline reminder tracking (replaces single reminderSentAt column) ────────
+
+enum DeadlineReminderStage {
+  TWO_DAYS
+  ONE_DAY
+  THREE_HOURS
+  AT_DEADLINE
+}
+
+model DeadlineReminder {
+  id        String                @id @default(cuid())
+  issueId   String
+  stage     DeadlineReminderStage
+  sentAt    DateTime              @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@unique([issueId, stage])
+  @@map("deadline_reminders")
 }
