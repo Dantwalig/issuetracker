@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { IssueUser, Issue, IssueType, IssueStatus, IssuePriority } from '@/types';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import styles from './IssueForm.module.css';
 
 type IssueFormData = {
@@ -35,7 +36,7 @@ export function IssueForm({
   submitLabel = 'Create issue',
   statusOnly = false,
 }: Props) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<IssueFormData>({
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<IssueFormData>({
     defaultValues: {
       title: defaultValues?.title ?? '',
       description: defaultValues?.description ?? '',
@@ -47,6 +48,9 @@ export function IssueForm({
       assigneeId: defaultValues?.assigneeId ?? '',
     },
   });
+
+  const [showPreview, setShowPreview] = useState(false);
+  const description = watch('description');
 
   useEffect(() => {
     if (defaultValues) {
@@ -106,8 +110,36 @@ export function IssueForm({
       </div>
 
       <div className={styles.field}>
-        <label className={styles.label}>Description</label>
-        <textarea className={styles.textarea} placeholder="Optional context…" rows={3} {...register('description')} />
+        <div className={styles.labelRow}>
+          <label className={styles.label}>Description</label>
+          <div className={styles.tabs}>
+            <button
+              type="button"
+              className={`${styles.tab} ${!showPreview ? styles.activeTab : ''}`}
+              onClick={() => setShowPreview(false)}
+            >
+              Write
+            </button>
+            <button
+              type="button"
+              className={`${styles.tab} ${showPreview ? styles.activeTab : ''}`}
+              onClick={() => setShowPreview(true)}
+            >
+              Preview
+            </button>
+          </div>
+        </div>
+        {showPreview ? (
+          <div className={styles.preview}>
+            {description?.trim() ? (
+              <MarkdownRenderer content={description} />
+            ) : (
+              <p className={styles.previewEmpty}>Nothing to preview</p>
+            )}
+          </div>
+        ) : (
+          <textarea className={styles.textarea} placeholder="Optional context…" rows={3} {...register('description')} />
+        )}
       </div>
 
       <div className={styles.row}>

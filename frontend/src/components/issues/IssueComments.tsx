@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { canEditComment, canDeleteComment } from '@/lib/permissions';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { IssueUser, CommentAttachment } from '@/types';
 import styles from './IssueComments.module.css';
 
@@ -164,6 +165,7 @@ export function IssueComments({ issueId, projectMembers = [] }: Props) {
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -426,9 +428,7 @@ export function IssueComments({ issueId, projectMembers = [] }: Props) {
                     </form>
                   ) : (
                     <>
-                      <div className={styles.text}>
-                        <ReactMarkdown>{comment.body}</ReactMarkdown>
-                      </div>
+                        <MarkdownRenderer content={comment.body} />
                       <AttachmentList
                         attachments={comment.attachments ?? []}
                       />
@@ -544,15 +544,42 @@ export function IssueComments({ issueId, projectMembers = [] }: Props) {
             </div>
           )}
 
-          <textarea
-            ref={textareaRef}
-            className={styles.textarea}
-            placeholder="Add a comment… (type @ to mention someone)"
-            value={newBody}
-            onChange={handleTextareaChange}
-            onBlur={() => setTimeout(() => setMentionOpen(false), 150)}
-            rows={3}
-          />
+          <div className={styles.inputTabs}>
+            <button
+              type="button"
+              className={`${styles.tabBtn} ${!showPreview ? styles.activeTab : ''}`}
+              onClick={() => setShowPreview(false)}
+            >
+              Write
+            </button>
+            <button
+              type="button"
+              className={`${styles.tabBtn} ${showPreview ? styles.activeTab : ''}`}
+              onClick={() => setShowPreview(true)}
+            >
+              Preview
+            </button>
+          </div>
+
+          {showPreview ? (
+            <div className={styles.previewArea}>
+              {newBody.trim() ? (
+                <MarkdownRenderer content={newBody} />
+              ) : (
+                <p className={styles.previewEmpty}>Nothing to preview</p>
+              )}
+            </div>
+          ) : (
+            <textarea
+              ref={textareaRef}
+              className={styles.textarea}
+              placeholder="Add a comment… (type @ to mention someone)"
+              value={newBody}
+              onChange={handleTextareaChange}
+              onBlur={() => setTimeout(() => setMentionOpen(false), 150)}
+              rows={3}
+            />
+          )}
         </div>
 
         <div className={styles.addActions}>

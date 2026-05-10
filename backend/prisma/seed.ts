@@ -57,6 +57,7 @@ async function main() {
     create: {
       name: 'Engineering',
       description: 'Core engineering team',
+      createdById: admin1.id,
       members: { create: [{ userId: admin1.id }, { userId: admin2.id }, { userId: admin3.id }, { userId: admin4.id }, { userId: admin5.id }, { userId: member.id }] },
     },
   });
@@ -71,6 +72,7 @@ async function main() {
         name: 'Issue Tracker MVP',
         description: 'Internal issue tracker project',
         teamId: team.id,
+        createdById: admin1.id,
         members: { create: [{ userId: admin1.id }, { userId: admin2.id }, { userId: admin3.id }, { userId: admin4.id }, { userId: admin5.id }, { userId: member.id }] },
       },
     });
@@ -100,6 +102,7 @@ async function main() {
           priority: 'HIGH',
           reporterId: admin1.id,
           assigneeId: member.id,
+          createdById: admin1.id,
           projectId: project.id,
         },
         {
@@ -110,6 +113,7 @@ async function main() {
           priority: 'HIGH',
           reporterId: member.id,
           assigneeId: admin1.id,
+          createdById: admin1.id,
           projectId: project.id,
         },
         {
@@ -119,6 +123,7 @@ async function main() {
           status: 'TODO',
           priority: 'MEDIUM',
           reporterId: admin1.id,
+          createdById: admin1.id,
           projectId: project.id,
         },
       ],

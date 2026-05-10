@@ -361,6 +361,48 @@
   justify-content: flex-end;
 }
 
+.inputTabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.tabBtn {
+  background: none;
+  border: none;
+  padding: 4px 12px;
+  font-size: 13px;
+  color: var(--text-3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.tabBtn:hover {
+  color: var(--text-2);
+}
+
+.activeTab {
+  color: var(--accent) !important;
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+
+.previewArea {
+  min-height: 72px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-size: 13px;
+}
+
+.previewEmpty {
+  color: var(--text-3);
+  font-style: italic;
+  font-size: 13px;
+}
+
 /* Shared textarea */
 .textarea {
   width: 100%;
