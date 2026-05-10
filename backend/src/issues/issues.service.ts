@@ -5,8 +5,11 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ActivityService } from '../activity/activity.service';
+import { TeamLeadService } from '../common/team-lead.service';
 import { CreateIssueDto, UpdateIssueDto } from './dto/issue.dto';
 import { Prisma } from '@prisma/client';
+import { randomBytes } from 'crypto';
 
 const issueSelect = Prisma.validator<Prisma.IssueSelect>()({
   id: true,
@@ -20,6 +23,10 @@ const issueSelect = Prisma.validator<Prisma.IssueSelect>()({
   projectId: true,
   sprintId: true,
   backlogOrder: true,
+  storyPoints: true,
+  deadline: true,
+  shareToken: true,
+  createdById: true,
   createdAt: true,
   updatedAt: true,
   reporter: {
@@ -35,14 +42,37 @@ const issueSelect = Prisma.validator<Prisma.IssueSelect>()({
 
 type IssueWithRelations = Prisma.IssueGetPayload<{ select: typeof issueSelect }>;
 
+// Public share view — no sensitive IDs, no project members
+const shareSelect = {
+  id: true,
+  title: true,
+  description: true,
+  type: true,
+  status: true,
+  priority: true,
+  storyPoints: true,
+  deadline: true,
+  createdAt: true,
+  updatedAt: true,
+  reporter: { select: { fullName: true } },
+  assignee: { select: { fullName: true } },
+  project: { select: { name: true } },
+};
+
 @Injectable()
 export class IssuesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly activity: ActivityService,
+    private readonly teamLead: TeamLeadService,
   ) {}
 
-  private async assertProjectAccess(projectId: string, userId: string, userRole: string) {
+  private async assertProjectAccess(
+    projectId: string,
+    userId: string,
+    userRole: string,
+  ) {
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
       include: { members: true },
@@ -50,7 +80,8 @@ export class IssuesService {
     if (!project) throw new NotFoundException(`Project ${projectId} not found`);
     if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       const isMember = project.members.some((m) => m.userId === userId);
-      if (!isMember) throw new ForbiddenException('You are not a member of this project');
+      if (!isMember)
+        throw new ForbiddenException('You are not a member of this project');
     }
     return project;
   }
@@ -60,7 +91,6 @@ export class IssuesService {
     if (!projectId) throw new ForbiddenException('projectId is required');
     await this.assertProjectAccess(projectId, reporterId, userRole);
 
-    // Place new issue at the end of the backlog
     const backlogMax = await this.prisma.issue.aggregate({
       where: { projectId, sprintId: null },
       _max: { backlogOrder: true },
@@ -74,9 +104,12 @@ export class IssuesService {
         type: dto.type,
         status: dto.status,
         priority: dto.priority,
+        storyPoints: dto.storyPoints,
+        deadline: dto.deadline ? new Date(dto.deadline) : undefined,
         assigneeId: dto.assigneeId,
         projectId: dto.projectId!,
         reporterId,
+        createdById: reporterId,
         backlogOrder,
       },
       select: issueSelect,
@@ -90,8 +123,17 @@ export class IssuesService {
         message: `You were assigned to "${issue.title}" in ${issue.project?.name ?? 'a project'}`,
         issueId: issue.id,
         projectId: issue.projectId,
+        emailContext: { issueTitle: issue.title, projectName: issue.project?.name },
       });
     }
+
+    this.activity.log({
+      projectId: issue.projectId,
+      userId: reporterId,
+      action: 'ISSUE_CREATED',
+      issueId: issue.id,
+      detail: issue.title,
+    });
 
     return issue;
   }
@@ -106,36 +148,41 @@ export class IssuesService {
   }
 
   async findOne(id: string, userId: string, userRole: string) {
-    const issue = await this.prisma.issue.findUnique({ where: { id }, select: issueSelect });
+    const issue = await this.prisma.issue.findUnique({
+      where: { id },
+      select: issueSelect,
+    });
     if (!issue) throw new NotFoundException(`Issue ${id} not found`);
     await this.assertProjectAccess(issue.projectId, userId, userRole);
     return issue;
   }
 
-  /**
-   * Permission rules:
-   *  - Admin: can update any field on any issue.
-   *  - Reporter: can update any field on issues they reported.
-   *  - Assignee: can update status only on issues assigned to them.
-   *  - Other project members: cannot update issues.
-   *
-   * If an unauthorized user tries to update a non-status field we throw 403.
-   */
   async update(id: string, dto: UpdateIssueDto, userId: string, userRole: string) {
     const before = await this.prisma.issue.findUnique({ where: { id } });
     if (!before) throw new NotFoundException(`Issue ${id} not found`);
     await this.assertProjectAccess(before.projectId, userId, userRole);
 
     const isAdmin = userRole === 'ADMIN' || userRole === 'SUPERADMIN';
+    const isProjectLead = await this.teamLead.isProjectTeamLead(userId, before.projectId);
     const isReporter = before.reporterId === userId;
     const isAssignee = before.assigneeId === userId;
+    const isUnassigned = before.assigneeId === null;
 
-    if (!isAdmin && !isReporter && !isAssignee) {
-      throw new ForbiddenException('You can only edit issues you reported or are assigned to');
+    // Team Leads can fully edit all issues in their project, same as admins.
+    const canFullEdit = isAdmin || isProjectLead || isReporter;
+
+    // For status-only updates: assignee, reporter, admin, team lead, OR any member
+    // if the issue is unassigned (so members can self-assign/claim tasks).
+    const canUpdateStatus = canFullEdit || isAssignee || isUnassigned;
+
+    if (!canUpdateStatus) {
+      throw new ForbiddenException(
+        'You can only edit issues you reported or are assigned to',
+      );
     }
 
-    // Assignees may only change status – reject any other field change
-    if (!isAdmin && !isReporter && isAssignee) {
+    // Non-admins / non-leads who are not the reporter may only update status.
+    if (!isAdmin && !isProjectLead && !isReporter) {
       const { status, ...otherFields } = dto;
       const hasOtherChanges = Object.keys(otherFields).some(
         (k) => (otherFields as any)[k] !== undefined,
@@ -145,9 +192,23 @@ export class IssuesService {
       }
     }
 
+    const updateData: any = { ...dto };
+    if (dto.deadline === null) {
+      updateData.deadline = null;
+    } else if (dto.deadline) {
+      updateData.deadline = new Date(dto.deadline);
+    } else {
+      delete updateData.deadline;
+    }
+    if (dto.storyPoints === null) {
+      updateData.storyPoints = null;
+    } else if (dto.storyPoints === undefined) {
+      delete updateData.storyPoints;
+    }
+
     const issue = await this.prisma.issue.update({
       where: { id },
-      data: dto,
+      data: updateData,
       select: issueSelect,
     }) as IssueWithRelations;
 
@@ -161,22 +222,121 @@ export class IssuesService {
         message: `You were assigned to "${issue.title}" in ${issue.project?.name ?? 'a project'}`,
         issueId: issue.id,
         projectId: issue.projectId,
+        emailContext: { issueTitle: issue.title, projectName: issue.project?.name },
+      });
+      this.activity.log({
+        projectId: issue.projectId,
+        userId,
+        action: 'ISSUE_ASSIGNED',
+        issueId: issue.id,
+        detail: issue.title,
+      });
+    }
+
+    if (dto.status && dto.status !== before.status) {
+      this.activity.log({
+        projectId: issue.projectId,
+        userId,
+        action: 'ISSUE_STATUS_CHANGED',
+        issueId: issue.id,
+        detail: `${before.status} → ${dto.status}`,
+      });
+    } else {
+      this.activity.log({
+        projectId: issue.projectId,
+        userId,
+        action: 'ISSUE_UPDATED',
+        issueId: issue.id,
+        detail: issue.title,
       });
     }
 
     return issue;
   }
 
-  /**
-   * Only the reporter or an admin may delete an issue.
-   */
   async remove(id: string, userId: string, userRole: string) {
     const issue = await this.prisma.issue.findUnique({ where: { id } });
     if (!issue) throw new NotFoundException(`Issue ${id} not found`);
     await this.assertProjectAccess(issue.projectId, userId, userRole);
-    if (issue.reporterId !== userId && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
-      throw new ForbiddenException('Only the reporter or an admin can delete this issue');
+
+    const isAdmin = userRole === 'ADMIN' || userRole === 'SUPERADMIN';
+    const isProjectLead = await this.teamLead.isProjectTeamLead(userId, issue.projectId);
+
+    if (!isAdmin && !isProjectLead && issue.reporterId !== userId) {
+      throw new ForbiddenException(
+        'Only the reporter, a team lead, or an admin can delete this issue',
+      );
     }
+
+    this.activity.log({
+      projectId: issue.projectId,
+      userId,
+      action: 'ISSUE_DELETED',
+      detail: issue.title,
+    });
+
     await this.prisma.issue.delete({ where: { id } });
+  }
+
+  // ── Share token ──────────────────────────────────────────────────────────
+
+  async generateShareToken(
+    issueId: string,
+    userId: string,
+    userRole: string,
+  ): Promise<{ shareToken: string }> {
+    const issue = await this.prisma.issue.findUnique({ where: { id: issueId } });
+    if (!issue) throw new NotFoundException(`Issue ${issueId} not found`);
+    await this.assertProjectAccess(issue.projectId, userId, userRole);
+
+    if (issue.shareToken) return { shareToken: issue.shareToken };
+
+    const token = randomBytes(24).toString('hex');
+    await this.prisma.issue.update({
+      where: { id: issueId },
+      data: { shareToken: token },
+    });
+
+    this.activity.log({
+      projectId: issue.projectId,
+      userId,
+      action: 'SHARE_LINK_CREATED',
+      issueId: issue.id,
+      detail: issue.title,
+    });
+
+    return { shareToken: token };
+  }
+
+  async revokeShareToken(
+    issueId: string,
+    userId: string,
+    userRole: string,
+  ): Promise<void> {
+    const issue = await this.prisma.issue.findUnique({ where: { id: issueId } });
+    if (!issue) throw new NotFoundException(`Issue ${issueId} not found`);
+    await this.assertProjectAccess(issue.projectId, userId, userRole);
+
+    await this.prisma.issue.update({
+      where: { id: issueId },
+      data: { shareToken: null },
+    });
+
+    this.activity.log({
+      projectId: issue.projectId,
+      userId,
+      action: 'SHARE_LINK_REVOKED',
+      issueId: issue.id,
+      detail: issue.title,
+    });
+  }
+
+  async findByShareToken(token: string) {
+    const issue = await this.prisma.issue.findUnique({
+      where: { shareToken: token },
+      select: shareSelect,
+    });
+    if (!issue) throw new NotFoundException('Shared card not found or link has been revoked');
+    return issue;
   }
 }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 import { QueryProvider } from '@/components/providers';
+import { KeyboardShortcutsProvider } from '@/lib/keyboard-shortcuts';
 
 export const metadata: Metadata = {
   title: 'Trackr — Issue Tracker',
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <QueryProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <KeyboardShortcutsProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </KeyboardShortcutsProvider>
         </QueryProvider>
       </body>
     </html>

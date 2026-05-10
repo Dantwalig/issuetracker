@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TeamLeadService } from '../common/team-lead.service';
 
 const issueSelect = {
   id: true,
@@ -27,7 +28,10 @@ const issueSelect = {
 
 @Injectable()
 export class BacklogService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly teamLead: TeamLeadService,
+  ) {}
 
   private async assertProjectAccess(
     projectId: string,
@@ -47,7 +51,6 @@ export class BacklogService {
     return project;
   }
 
-  /** Return all issues with no sprint, ordered by backlogOrder */
   async list(projectId: string, userId: string, userRole: string) {
     await this.assertProjectAccess(projectId, userId, userRole);
     return this.prisma.issue.findMany({
@@ -57,7 +60,6 @@ export class BacklogService {
     });
   }
 
-  /** Reorder the backlog by accepting the full ordered list of issue IDs */
   async reorder(
     projectId: string,
     orderedIds: string[],
@@ -66,16 +68,12 @@ export class BacklogService {
   ) {
     await this.assertProjectAccess(projectId, userId, userRole);
 
-    // Verify all provided IDs are backlog issues belonging to this project
     const issues = await this.prisma.issue.findMany({
       where: { projectId, sprintId: null },
       select: { id: true },
     });
     const backlogIdSet = new Set(issues.map((i) => i.id));
 
-    // Completeness check: caller must send every backlog issue, not just a subset.
-    // A partial list would leave omitted issues with stale backlogOrder values,
-    // silently corrupting sort order.
     if (orderedIds.length !== backlogIdSet.size) {
       throw new BadRequestException(
         `orderedIds must contain every backlog issue (expected ${backlogIdSet.size}, got ${orderedIds.length})`,
@@ -102,11 +100,6 @@ export class BacklogService {
     return this.list(projectId, userId, userRole);
   }
 
-  /**
-   * Move an issue into or out of a sprint.
-   * sprintId = null  → move to backlog
-   * sprintId = <id>  → move into that sprint
-   */
   async moveIssue(
     projectId: string,
     issueId: string,
@@ -122,7 +115,6 @@ export class BacklogService {
     }
 
     if (sprintId === null) {
-      // Moving to backlog: any project member is allowed — append at end
       const backlogMax = await this.prisma.issue.aggregate({
         where: { projectId, sprintId: null },
         _max: { backlogOrder: true },
@@ -134,14 +126,14 @@ export class BacklogService {
         select: issueSelect,
       });
     } else {
-      // Moving INTO a sprint: admin only (consistent with sprint planning controls)
-      if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
-        throw new ForbiddenException('Only admins can move issues into a sprint');
+      const isAdmin = userRole === 'ADMIN' || userRole === 'SUPERADMIN';
+      const isLead = await this.teamLead.isProjectTeamLead(userId, projectId);
+      if (!isAdmin && !isLead) {
+        throw new ForbiddenException(
+          'Only admins or team leads can move issues into a sprint',
+        );
       }
-      // Moving into a sprint: validate sprint exists and is not completed
-      const sprint = await this.prisma.sprint.findUnique({
-        where: { id: sprintId },
-      });
+      const sprint = await this.prisma.sprint.findUnique({ where: { id: sprintId } });
       if (!sprint || sprint.projectId !== projectId) {
         throw new NotFoundException('Sprint not found in this project');
       }

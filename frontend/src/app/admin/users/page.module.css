@@ -162,6 +162,11 @@
   color: var(--accent);
 }
 
+.roleTeamLead {
+  background: color-mix(in srgb, #a855f7 15%, transparent);
+  color: #a855f7;
+}
+
 .roleMember {
   background: color-mix(in srgb, var(--text-3) 15%, transparent);
   color: var(--text-3);

@@ -7,9 +7,10 @@ import { boardApi, BoardColumns } from '@/lib/board-api';
 import { projectsApi } from '@/lib/projects-api';
 import { useAuth } from '@/lib/auth-context';
 import { canUpdateIssueStatus } from '@/lib/permissions';
-import { Issue, IssueStatus } from '@/types';
-import { PriorityBadge, TypeBadge } from '@/components/ui/Badge';
+import { Issue, IssueStatus, Project } from '@/types';
+import { PriorityBadge, TypeBadge, DeadlineBadge } from '@/components/ui/Badge';
 import { formatDistanceToNow } from 'date-fns';
+import { useShortcut } from '@/lib/keyboard-shortcuts';
 import styles from './page.module.css';
 
 const COLUMNS: { key: IssueStatus; label: string }[] = [
@@ -55,6 +56,26 @@ export default function BoardPage() {
   // Optimistic columns — mirrors server state locally during drag
   const [optimisticColumns, setOptimisticColumns] = useState<BoardColumns | null>(null);
   const columns = optimisticColumns ?? board?.columns ?? { TODO: [], IN_PROGRESS: [], DONE: [] };
+
+  // Board keyboard shortcuts — navigate to project sub-pages
+  useShortcut('board:issues', {
+    key: 'i',
+    description: 'Go to Issues list',
+    group: 'Board',
+    action: () => router.push(`/projects/${projectId}/issues`),
+  });
+  useShortcut('board:backlog', {
+    key: 'b',
+    description: 'Go to Backlog',
+    group: 'Board',
+    action: () => router.push(`/projects/${projectId}/backlog`),
+  });
+  useShortcut('board:refresh', {
+    key: 'r',
+    description: 'Refresh board',
+    group: 'Board',
+    action: () => qc.invalidateQueries({ queryKey: ['board', projectId] }),
+  });
 
   const statusMutation = useMutation({
     mutationFn: ({ issueId, status }: { issueId: string; status: IssueStatus }) =>
@@ -122,7 +143,7 @@ export default function BoardPage() {
       }
 
       // Check permission before attempting the update
-      if (!canUpdateIssueStatus(user, drag.issue)) {
+      if (!canUpdateIssueStatus(user, drag.issue, project)) {
         dragIssueRef.current = null;
         setDragError('You can only move issues you reported or are assigned to');
         return;
@@ -270,6 +291,7 @@ export default function BoardPage() {
               router.push(`/projects/${projectId}/issues/${issue.id}`)
             }
             currentUser={user}
+            project={project}
           />
         ))}
       </div>
@@ -291,6 +313,7 @@ interface ColumnProps {
   onDragEnd: () => void;
   onIssueClick: (issue: Issue) => void;
   currentUser: ReturnType<typeof useAuth>['user'];
+  project: Project | undefined;
 }
 
 function Column({
@@ -305,6 +328,7 @@ function Column({
   onDragEnd,
   onIssueClick,
   currentUser,
+  project,
 }: ColumnProps) {
   return (
     <div
@@ -327,7 +351,7 @@ function Column({
             key={issue.id}
             issue={issue}
             status={status}
-            canDrag={canUpdateIssueStatus(currentUser, issue)}
+            canDrag={canUpdateIssueStatus(currentUser, issue, project)}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             onClick={() => onIssueClick(issue)}
@@ -366,21 +390,35 @@ function IssueCard({ issue, status, canDrag, onDragStart, onDragEnd, onClick }: 
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
     >
-      <p className={styles.cardTitle}>{issue.title}</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+        <p className={styles.cardTitle} style={{ margin: 0, flex: 1 }}>{issue.title}</p>
+        {issue.storyPoints != null && (
+          <span style={{
+            flexShrink: 0, minWidth: 22, height: 22,
+            background: 'var(--accent-dim)', color: 'var(--accent)',
+            borderRadius: '50%', fontSize: 11, fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '1px solid var(--accent)',
+          }} title="Story points">
+            {issue.storyPoints}
+          </span>
+        )}
+      </div>
 
       <div className={styles.cardMeta}>
         <TypeBadge type={issue.type} />
         <PriorityBadge priority={issue.priority} />
+        <DeadlineBadge deadline={issue.deadline} status={issue.status} />
       </div>
 
       <div className={styles.cardFooter}>
-        <span className={styles.cardReporter} title={issue.reporter.fullName}>
-          <span className={styles.avatar}>{issue.reporter.fullName[0].toUpperCase()}</span>
+        <span className={styles.cardReporter} title={issue.reporter?.fullName}>
+          <span className={styles.avatar}>{issue.reporter?.fullName?.[0]?.toUpperCase()}</span>
           {issue.assignee && (
             <>
               <span className={styles.arrowRight}>→</span>
               <span className={styles.avatar} title={issue.assignee.fullName}>
-                {issue.assignee.fullName[0].toUpperCase()}
+                {issue.assignee.fullName?.[0]?.toUpperCase()}
               </span>
             </>
           )}

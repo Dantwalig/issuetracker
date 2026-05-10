@@ -9,6 +9,9 @@ import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
 import styles from './page.module.css';
+import { DeleteModal } from '@/components/ui/DeleteModal';
+import { recycleBinApi } from '@/lib/recycle-bin-api';
+import { BackButton } from '@/components/ui/BackButton';
 
 export default function TeamDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +19,7 @@ export default function TeamDetailPage() {
   const qc = useQueryClient();
   const { user: currentUser } = useAuth();
   const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERADMIN';
+  const [showDelete, setShowDelete] = useState(false);
 
   const [showAddMember, setShowAddMember] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -43,6 +47,16 @@ export default function TeamDetailPage() {
 
   const removeMemberMutation = useMutation({
     mutationFn: (userId: string) => teamsApi.removeMember(id, userId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['team', id] }),
+  });
+
+  const promoteTeamLeadMutation = useMutation({
+    mutationFn: (userId: string) => teamsApi.promoteToTeamLead(id, userId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['team', id] }),
+  });
+
+  const revokeTeamLeadMutation = useMutation({
+    mutationFn: (userId: string) => teamsApi.revokeTeamLead(id, userId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['team', id] }),
   });
 
@@ -81,8 +95,13 @@ export default function TeamDetailPage() {
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
-        <button className={styles.backBtn} onClick={() => router.push('/teams')}>← All teams</button>
-        {isAdmin && <button className={styles.editBtn} onClick={openEdit}>Edit</button>}
+        <BackButton href="/teams" label="All teams" />
+        <div className={styles.topBarActions}>
+          {isAdmin && <button className={styles.editBtn} onClick={openEdit}>Edit</button>}
+          {isAdmin && (
+            <button className={styles.deleteBtn} onClick={() => setShowDelete(true)}>Delete</button>
+          )}
+        </div>
       </div>
 
       <div className={styles.card}>
@@ -105,17 +124,38 @@ export default function TeamDetailPage() {
           <div className={styles.memberList}>
             {team.members.length === 0 && <p className={styles.empty}>No members yet.</p>}
             {team.members.map((m) => (
-              <div key={m.user.id} className={styles.memberRow}>
-                <div className={styles.memberAvatar}>{m.user.fullName[0].toUpperCase()}</div>
+              <div key={m.user?.id} className={styles.memberRow}>
+                <div className={styles.memberAvatar}>{m.user?.fullName?.[0]?.toUpperCase()}</div>
                 <div className={styles.memberInfo}>
-                  <span className={styles.memberName}>{m.user.fullName}</span>
-                  <span className={styles.memberEmail}>{m.user.email}</span>
+                  <span className={styles.memberName}>{m.user?.fullName}</span>
+                  <span className={styles.memberEmail}>{m.user?.email}</span>
                 </div>
-                <span className={styles.memberRole}>{m.user.role}</span>
+                <span className={styles.memberRole}>{m.user?.role}</span>
+                {m.scopedRole === 'TEAM_LEAD' && (
+                  <span style={{ fontSize: 11, fontWeight: 600, background: 'var(--accent, #6366f1)', color: '#fff', borderRadius: 4, padding: '2px 7px', marginLeft: 4 }}>
+                    Team Lead
+                  </span>
+                )}
+                {isAdmin && m.scopedRole !== 'TEAM_LEAD' && (
+                  <button
+                    className={styles.removeBtn}
+                    style={{ background: 'none', border: '1px solid var(--accent, #6366f1)', color: 'var(--accent, #6366f1)', marginLeft: 4 }}
+                    onClick={() => promoteTeamLeadMutation.mutate(m.user?.id)}
+                    disabled={promoteTeamLeadMutation.isPending}
+                  >Make Lead</button>
+                )}
+                {isAdmin && m.scopedRole === 'TEAM_LEAD' && (
+                  <button
+                    className={styles.removeBtn}
+                    style={{ background: 'none', border: '1px solid #f59e0b', color: '#f59e0b', marginLeft: 4 }}
+                    onClick={() => revokeTeamLeadMutation.mutate(m.user?.id)}
+                    disabled={revokeTeamLeadMutation.isPending}
+                  >Revoke Lead</button>
+                )}
                 {isAdmin && (
                   <button
                     className={styles.removeBtn}
-                    onClick={() => removeMemberMutation.mutate(m.user.id)}
+                    onClick={() => removeMemberMutation.mutate(m.user?.id)}
                     disabled={removeMemberMutation.isPending}
                   >Remove</button>
                 )}
@@ -165,6 +205,18 @@ export default function TeamDetailPage() {
             </div>
           </form>
         </Modal>
+      )}
+
+      {showDelete && team && (
+        <DeleteModal
+          itemName={team.name}
+          itemType="team"
+          onConfirm={async (reason) => {
+            await recycleBinApi.deleteTeam(id, reason);
+            router.push('/teams');
+          }}
+          onCancel={() => setShowDelete(false)}
+        />
       )}
     </div>
   );

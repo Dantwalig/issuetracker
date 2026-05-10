@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ActivityService } from '../activity/activity.service';
+import { TeamLeadService } from '../common/team-lead.service';
 import { CreateSprintDto, UpdateSprintDto } from './dto/sprint.dto';
 
 const sprintSelect = {
@@ -45,6 +47,8 @@ export class SprintsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly activity: ActivityService,
+    private readonly teamLead: TeamLeadService,
   ) {}
 
   // ── Access control ─────────────────────────────────────────────────────────
@@ -67,13 +71,25 @@ export class SprintsService {
     return project;
   }
 
-  /**
-   * Sprint lifecycle actions (create, delete, start, complete, edit) are
-   * restricted to admins only. Read operations are open to all project members.
-   */
   private assertAdminOrForbid(userRole: string, action: string) {
     if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
       throw new ForbiddenException(`Only admins can ${action}`);
+    }
+  }
+
+  /**
+   * Passes if the user is an ADMIN/SUPERADMIN **or** a Team Lead for the given project.
+   */
+  private async assertAdminOrTeamLead(
+    userRole: string,
+    userId: string,
+    projectId: string,
+    action: string,
+  ): Promise<void> {
+    if (userRole === 'ADMIN' || userRole === 'SUPERADMIN') return;
+    const isLead = await this.teamLead.isProjectTeamLead(userId, projectId);
+    if (!isLead) {
+      throw new ForbiddenException(`Only admins or team leads can ${action}`);
     }
   }
 
@@ -82,15 +98,12 @@ export class SprintsService {
     userId: string,
     userRole: string,
   ) {
-    const sprint = await this.prisma.sprint.findUnique({
-      where: { id: sprintId },
-    });
+    const sprint = await this.prisma.sprint.findUnique({ where: { id: sprintId } });
     if (!sprint) throw new NotFoundException(`Sprint ${sprintId} not found`);
     await this.assertProjectAccess(sprint.projectId, userId, userRole);
     return sprint;
   }
 
-  /** Fetch all distinct member user-ids for a project */
   private async getProjectMemberIds(projectId: string): Promise<string[]> {
     const members = await this.prisma.projectMember.findMany({
       where: { projectId },
@@ -101,14 +114,9 @@ export class SprintsService {
 
   // ── CRUD ───────────────────────────────────────────────────────────────────
 
-  async create(
-    projectId: string,
-    dto: CreateSprintDto,
-    userId: string,
-    userRole: string,
-  ) {
+  async create(projectId: string, dto: CreateSprintDto, userId: string, userRole: string) {
     await this.assertProjectAccess(projectId, userId, userRole);
-    this.assertAdminOrForbid(userRole, 'create sprints');
+    await this.assertAdminOrTeamLead(userRole, userId, projectId, 'create sprints');
     return this.prisma.sprint.create({
       data: {
         name: dto.name,
@@ -132,20 +140,12 @@ export class SprintsService {
 
   async findOne(sprintId: string, userId: string, userRole: string) {
     const sprint = await this.getSprintAndAssertAccess(sprintId, userId, userRole);
-    return this.prisma.sprint.findUnique({
-      where: { id: sprint.id },
-      select: sprintSelect,
-    });
+    return this.prisma.sprint.findUnique({ where: { id: sprint.id }, select: sprintSelect });
   }
 
-  async update(
-    sprintId: string,
-    dto: UpdateSprintDto,
-    userId: string,
-    userRole: string,
-  ) {
+  async update(sprintId: string, dto: UpdateSprintDto, userId: string, userRole: string) {
     const sprint = await this.getSprintAndAssertAccess(sprintId, userId, userRole);
-    this.assertAdminOrForbid(userRole, 'edit sprints');
+    await this.assertAdminOrTeamLead(userRole, userId, sprint.projectId, 'edit sprints');
     if (sprint.status === 'COMPLETED') {
       throw new BadRequestException('Cannot edit a completed sprint');
     }
@@ -166,7 +166,7 @@ export class SprintsService {
 
   async deleteSprint(sprintId: string, userId: string, userRole: string) {
     const sprint = await this.getSprintAndAssertAccess(sprintId, userId, userRole);
-    this.assertAdminOrForbid(userRole, 'delete sprints');
+    await this.assertAdminOrTeamLead(userRole, userId, sprint.projectId, 'delete sprints');
     if (sprint.status !== 'DRAFT') {
       throw new BadRequestException('Only draft sprints can be deleted');
     }
@@ -177,14 +177,18 @@ export class SprintsService {
 
   async startSprint(sprintId: string, userId: string, userRole: string) {
     const sprint = await this.getSprintAndAssertAccess(sprintId, userId, userRole);
-    this.assertAdminOrForbid(userRole, 'start sprints');
+    await this.assertAdminOrTeamLead(userRole, userId, sprint.projectId, 'start sprints');
 
     if (sprint.status !== 'DRAFT') {
-      throw new BadRequestException(
-        `Sprint is already ${sprint.status.toLowerCase()}`,
-      );
+      throw new BadRequestException(`Sprint is already ${sprint.status.toLowerCase()}`);
     }
 
+    const alreadyActive = await this.prisma.sprint.findFirst({
+      where: { projectId: sprint.projectId, status: 'ACTIVE' },
+    });
+    if (alreadyActive) {
+      throw new ConflictException('Another sprint is already active in this project');
+    }
     const project = await this.prisma.project.findUnique({
       where: { id: sprint.projectId },
       select: { name: true },
@@ -204,15 +208,23 @@ export class SprintsService {
         title: `Sprint "${sprint.name}" started`,
         message: `Sprint "${sprint.name}" is now active in ${project?.name ?? 'your project'}`,
         projectId: sprint.projectId,
+        emailContext: { projectName: project?.name },
       })),
     );
+
+    this.activity.log({
+      projectId: sprint.projectId,
+      userId,
+      action: 'SPRINT_STARTED',
+      detail: sprint.name,
+    });
 
     return updated;
   }
 
   async completeSprint(sprintId: string, userId: string, userRole: string) {
     const sprint = await this.getSprintAndAssertAccess(sprintId, userId, userRole);
-    this.assertAdminOrForbid(userRole, 'complete sprints');
+    await this.assertAdminOrTeamLead(userRole, userId, sprint.projectId, 'complete sprints');
 
     if (sprint.status !== 'ACTIVE') {
       throw new BadRequestException('Only an active sprint can be completed');
@@ -224,19 +236,13 @@ export class SprintsService {
     });
     let nextOrder = (backlogMax._max.backlogOrder ?? -1) + 1;
 
-    // Only issues that are NOT DONE return to the backlog.
-    // DONE issues remain associated with the completed sprint as a historical record.
     const unfinished = await this.prisma.issue.findMany({
       where: { sprintId, status: { not: 'DONE' } },
       select: { id: true },
     });
 
     await this.prisma.$transaction([
-      this.prisma.sprint.update({
-        where: { id: sprintId },
-        data: { status: 'COMPLETED' },
-      }),
-      // Move only unfinished issues back to the backlog with proper ordering
+      this.prisma.sprint.update({ where: { id: sprintId }, data: { status: 'COMPLETED' } }),
       ...unfinished.map((issue, i) =>
         this.prisma.issue.update({
           where: { id: issue.id },
@@ -258,13 +264,18 @@ export class SprintsService {
         title: `Sprint "${sprint.name}" completed`,
         message: `Sprint "${sprint.name}" has been completed in ${project?.name ?? 'your project'}. ${unfinished.length} issue(s) returned to backlog.`,
         projectId: sprint.projectId,
+        emailContext: { projectName: project?.name },
       })),
     );
 
-    return this.prisma.sprint.findUnique({
-      where: { id: sprintId },
-      select: sprintSelect,
+    this.activity.log({
+      projectId: sprint.projectId,
+      userId,
+      action: 'SPRINT_COMPLETED',
+      detail: `${sprint.name} — ${unfinished.length} issue(s) returned to backlog`,
     });
+
+    return this.prisma.sprint.findUnique({ where: { id: sprintId }, select: sprintSelect });
   }
 
   // ── Sprint issues ──────────────────────────────────────────────────────────
@@ -286,7 +297,7 @@ export class SprintsService {
     userRole: string,
   ) {
     await this.assertProjectAccess(projectId, userId, userRole);
-    this.assertAdminOrForbid(userRole, 'add issues to sprints');
+    await this.assertAdminOrTeamLead(userRole, userId, projectId, 'add issues to sprints');
 
     const sprint = await this.prisma.sprint.findUnique({ where: { id: sprintId } });
     if (!sprint || sprint.projectId !== projectId) {
@@ -316,14 +327,12 @@ export class SprintsService {
     userRole: string,
   ) {
     await this.assertProjectAccess(projectId, userId, userRole);
-    this.assertAdminOrForbid(userRole, 'remove issues from sprints');
+    await this.assertAdminOrTeamLead(userRole, userId, projectId, 'remove issues from sprints');
 
     const issue = await this.prisma.issue.findUnique({ where: { id: issueId } });
     if (!issue || issue.projectId !== projectId) {
       throw new NotFoundException('Issue not found in this project');
     }
-
-    // Verify the issue actually belongs to the claimed sprint
     if (issue.sprintId !== sprintId) {
       throw new NotFoundException('Issue does not belong to this sprint');
     }

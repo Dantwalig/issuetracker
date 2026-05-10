@@ -3,13 +3,15 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
   SUPERADMIN
   ADMIN
+  TEAM_LEAD
   MEMBER
 }
 
@@ -42,16 +44,44 @@ enum NotificationType {
   COMMENT_ADDED
   SPRINT_STARTED
   SPRINT_COMPLETED
+  DELETION_NOTICE
+  DELETION_REQUEST
+  DELETION_APPROVED
+  DELETION_REJECTED
+  RESTORE_REQUEST
+  RESTORE_APPROVED
+  RESTORE_REJECTED
+  DEADLINE_REMINDER
+  DIRECT_MESSAGE
+  MENTION
 }
 
+enum DeletedItemType {
+  ISSUE
+  PROJECT
+  TEAM
+}
+
+enum DeletionRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RecycleBinStatus {
+  ACTIVE
+  RESTORED
+  PURGED
+}
 
 model User {
-  id               String   @id @default(cuid())
-  email            String   @unique
-  passwordHash     String
-  fullName         String
-  role             Role     @default(MEMBER)
-  isActive         Boolean  @default(true)
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  passwordHash        String
+  fullName            String
+  role                Role      @default(MEMBER)
+  isActive            Boolean   @default(true)
+  avatarUrl           String?
   refreshTokenHash    String?
   mustChangePassword  Boolean   @default(false)
   passwordResetToken  String?
@@ -59,38 +89,58 @@ model User {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  reportedIssues  Issue[]         @relation("Reporter")
-  assignedIssues  Issue[]         @relation("Assignee")
-  teamMemberships TeamMember[]
-  projectMembers  ProjectMember[]
-  comments        Comment[]
-  notifications   Notification[]
+  reportedIssues    Issue[]           @relation("Reporter")
+  assignedIssues    Issue[]           @relation("Assignee")
+  createdIssues     Issue[]           @relation("IssueCreator")
+  teamMemberships   TeamMember[]
+  projectMembers    ProjectMember[]
+  comments          Comment[]
+  notifications     Notification[]
+  createdTeams      Team[]            @relation("TeamCreator")
+  createdProjects   Project[]         @relation("ProjectCreator")
+  deletedItems      DeletedItem[]     @relation("DeletedBy")
+  deletionRequests  DeletionRequest[] @relation("DeletionRequester")
+  deletionResponses DeletionRequest[] @relation("DeletionResponder")
+  restoreRequests   RestoreRequest[]  @relation("RestoreRequester")
+  restoreResponses  RestoreRequest[]  @relation("RestoreResponder")
+  sentMessages      DirectMessage[]   @relation("MessageSender")
+  receivedMessages  DirectMessage[]   @relation("MessageReceiver")
+  activityLogs      ActivityLog[]
+  createdGroups     GroupChat[]       @relation("GroupCreator")
+  groupMemberships  GroupMember[]     @relation("GroupMemberships")
+  groupMessages     GroupMessage[]    @relation("GroupMessageSender")
+  groupInvitesInitiated GroupInviteRequest[] @relation("GroupInviteInitiator")
+  groupInvitesReceived  GroupInviteRequest[] @relation("GroupInviteInvitee")
 
   @@map("users")
 }
 
 model Team {
-  id          String     @id @default(cuid())
-  name        String     @unique
+  id          String   @id @default(cuid())
+  name        String   @unique
   description String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  members  TeamMember[]
-  projects Project[]
+  createdBy User         @relation("TeamCreator", fields: [createdById], references: [id])
+  members   TeamMember[]
+  projects  Project[]
 
   @@map("teams")
 }
 
 model TeamMember {
-  teamId    String
-  userId    String
-  createdAt DateTime @default(now())
+  teamId     String
+  userId     String
+  scopedRole String?
+  createdAt  DateTime @default(now())
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([teamId, userId])
+  @@index([teamId, scopedRole])
   @@map("team_members")
 }
 
@@ -99,26 +149,32 @@ model Project {
   name        String
   description String?
   teamId      String?
+  createdById String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  team    Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  members ProjectMember[]
-  issues  Issue[]
-  sprints Sprint[]
+  createdBy    User            @relation("ProjectCreator", fields: [createdById], references: [id])
+  team         Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  members      ProjectMember[]
+  issues       Issue[]
+  sprints      Sprint[]
+  activityLogs ActivityLog[]
+  labels       Label[]
 
   @@map("projects")
 }
 
 model ProjectMember {
-  projectId String
-  userId    String
-  createdAt DateTime @default(now())
+  projectId  String
+  userId     String
+  scopedRole String?
+  createdAt  DateTime @default(now())
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([projectId, userId])
+  @@index([projectId, scopedRole])
   @@map("project_members")
 }
 
@@ -138,6 +194,32 @@ model Sprint {
   @@map("sprints")
 }
 
+model Label {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#6366f1")
+  projectId String
+  createdAt DateTime @default(now())
+
+  project Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issues  IssueLabel[]
+
+  @@unique([name, projectId])
+  @@map("labels")
+}
+
+model IssueLabel {
+  issueId   String
+  labelId   String
+  createdAt DateTime @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([issueId, labelId])
+  @@map("issue_labels")
+}
+
 model Issue {
   id           String        @id @default(cuid())
   title        String
@@ -145,35 +227,229 @@ model Issue {
   type         IssueType     @default(TASK)
   status       IssueStatus   @default(TODO)
   priority     IssuePriority @default(MEDIUM)
+  storyPoints  Int?
+  deadline     DateTime?
   assigneeId   String?
   reporterId   String
+  createdById  String
   projectId    String
   sprintId     String?
-  backlogOrder Int?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  backlogOrder    Int?
+  reminderSentAt  DateTime?
+  shareToken      String?   @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  reporter User      @relation("Reporter", fields: [reporterId], references: [id])
-  assignee User?     @relation("Assignee", fields: [assigneeId], references: [id])
-  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  sprint   Sprint?   @relation(fields: [sprintId], references: [id], onDelete: SetNull)
-  comments Comment[]
+  reporter  User     @relation("Reporter",     fields: [reporterId],  references: [id])
+  assignee  User?    @relation("Assignee",     fields: [assigneeId],  references: [id])
+  createdBy User     @relation("IssueCreator", fields: [createdById], references: [id])
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprint    Sprint?  @relation(fields: [sprintId],  references: [id], onDelete: SetNull)
+  comments  Comment[]
+  labels    IssueLabel[]
+  checklists Checklist[]
+  deletionRequests DeletionRequest[]
+  activityLogs ActivityLog[]
+  deadlineReminders DeadlineReminder[]
 
   @@map("issues")
 }
 
-model Comment {
-  id        String   @id @default(cuid())
+model Checklist {
+  id        String          @id @default(cuid())
   issueId   String
-  authorId  String
-  body      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  title     String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  issue Issue          @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  items ChecklistItem[]
+
+  @@map("checklists")
+}
+
+model ChecklistItem {
+  id          String    @id @default(cuid())
+  checklistId String
+  text        String
+  isChecked   Boolean   @default(false)
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  checklist Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@map("checklist_items")
+}
+
+model Comment {
+  id          String    @id @default(cuid())
+  issueId     String
+  authorId    String
+  body        String
+  attachments CommentAttachment[]
+  mentions    CommentMention[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   issue  Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
   author User  @relation(fields: [authorId], references: [id])
 
   @@map("comments")
+}
+
+model CommentAttachment {
+  id        String   @id @default(cuid())
+  commentId String
+  fileName  String
+  fileUrl   String
+  fileSize  Int
+  mimeType  String
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@map("comment_attachments")
+}
+
+model CommentMention {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@map("comment_mentions")
+}
+
+model DirectMessage {
+  id          String   @id @default(cuid())
+  senderId    String
+  receiverId  String
+  body        String
+  isRead      Boolean  @default(false)
+  editedAt    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sender   User @relation("MessageSender",   fields: [senderId],   references: [id])
+  receiver User @relation("MessageReceiver", fields: [receiverId], references: [id])
+
+  @@index([senderId, receiverId])
+  @@index([receiverId, isRead])
+  @@map("direct_messages")
+}
+
+// ── Group Chats ──────────────────────────────────────────────────────────────
+
+enum GroupMemberRole {
+  ADMIN
+  MEMBER
+}
+
+enum GroupInviteStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model GroupChat {
+  id          String   @id @default(cuid())
+  name        String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy    User              @relation("GroupCreator", fields: [createdById], references: [id])
+  members      GroupMember[]
+  messages     GroupMessage[]
+  inviteRequests GroupInviteRequest[]
+
+  @@map("group_chats")
+}
+
+model GroupMember {
+  id          String          @id @default(cuid())
+  groupId     String
+  userId      String
+  role        GroupMemberRole @default(MEMBER)
+  joinedAt    DateTime        @default(now())
+
+  group GroupChat @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User      @relation("GroupMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  approvals GroupInviteApproval[]
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+model GroupMessage {
+  id        String    @id @default(cuid())
+  groupId   String
+  senderId  String
+  body      String
+  editedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  group  GroupChat @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sender User      @relation("GroupMessageSender", fields: [senderId], references: [id])
+
+  @@index([groupId, createdAt])
+  @@map("group_messages")
+}
+
+model GroupInviteRequest {
+  id            String            @id @default(cuid())
+  groupId       String
+  initiatorId   String
+  inviteeId     String
+  status        GroupInviteStatus @default(PENDING)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  group     GroupChat             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  initiator User                  @relation("GroupInviteInitiator", fields: [initiatorId], references: [id])
+  invitee   User                  @relation("GroupInviteInvitee",   fields: [inviteeId],   references: [id])
+  approvals GroupInviteApproval[]
+
+  @@map("group_invite_requests")
+}
+
+model GroupInviteApproval {
+  id        String            @id @default(cuid())
+  requestId String
+  memberId  String
+  status    GroupInviteStatus @default(PENDING)
+  reason    String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  request GroupInviteRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  member  GroupMember        @relation(fields: [memberId],  references: [id], onDelete: Cascade)
+
+  @@unique([requestId, memberId])
+  @@map("group_invite_approvals")
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  projectId String
+  issueId   String?
+  userId    String
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issue   Issue?  @relation(fields: [issueId], references: [id], onDelete: SetNull)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([projectId, createdAt])
+  @@map("activity_logs")
 }
 
 model Notification {
@@ -192,4 +468,81 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+model DeletedItem {
+  id           String          @id @default(cuid())
+  itemType     DeletedItemType
+  itemId       String
+  itemSnapshot Json
+  deletedById  String
+  reason       String
+  status       RecycleBinStatus @default(ACTIVE)
+  deletedAt    DateTime         @default(now())
+  expiresAt    DateTime
+  restoredAt   DateTime?
+
+  deletedBy      User             @relation("DeletedBy", fields: [deletedById], references: [id])
+  restoreRequests RestoreRequest[]
+
+  @@index([itemType, status])
+  @@index([expiresAt, status])
+  @@map("deleted_items")
+}
+
+model DeletionRequest {
+  id             String               @id @default(cuid())
+  issueId        String
+  requestedById  String
+  reason         String
+  status         DeletionRequestStatus @default(PENDING)
+  responseReason String?
+  respondedById  String?
+  respondedAt    DateTime?
+  createdAt      DateTime             @default(now())
+
+  issue       Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  requestedBy User   @relation("DeletionRequester", fields: [requestedById], references: [id])
+  respondedBy User?  @relation("DeletionResponder", fields: [respondedById], references: [id])
+
+  @@map("deletion_requests")
+}
+
+model RestoreRequest {
+  id              String               @id @default(cuid())
+  deletedItemId   String
+  requestedById   String
+  reason          String
+  status          DeletionRequestStatus @default(PENDING)
+  responseReason  String?
+  respondedById   String?
+  respondedAt     DateTime?
+  createdAt       DateTime             @default(now())
+
+  deletedItem  DeletedItem @relation(fields: [deletedItemId], references: [id], onDelete: Cascade)
+  requestedBy  User        @relation("RestoreRequester", fields: [requestedById], references: [id])
+  respondedBy  User?       @relation("RestoreResponder", fields: [respondedById], references: [id])
+
+  @@map("restore_requests")
+}
+
+// ── Deadline reminder tracking (replaces single reminderSentAt column) ────────
+
+enum DeadlineReminderStage {
+  TWO_DAYS
+  ONE_DAY
+  THREE_HOURS
+  AT_DEADLINE
+}
+
+model DeadlineReminder {
+  id        String                @id @default(cuid())
+  issueId   String
+  stage     DeadlineReminderStage
+  sentAt    DateTime              @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@unique([issueId, stage])
+  @@map("deadline_reminders")
 }

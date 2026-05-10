@@ -95,6 +95,87 @@
   margin: 0;
 }
 
+/* @mention highlight inside comment text */
+.mention {
+  color: var(--accent);
+  font-weight: 500;
+  background: var(--accent-dim);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+/* Attachments displayed under comment body */
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.attachment {
+  position: relative;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--bg-2);
+}
+
+.attachmentImage {
+  display: block;
+  max-width: 200px;
+  max-height: 150px;
+  object-fit: cover;
+  cursor: zoom-in;
+}
+
+.attachmentPdf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-2);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.attachmentPdf:hover {
+  color: var(--accent);
+}
+
+.attachmentPdfIcon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.attachmentName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Image lightbox */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  cursor: zoom-out;
+}
+
+.lightboxImg {
+  max-width: 92vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 8px 48px rgba(0, 0, 0, 0.6);
+}
+
 .actions {
   display: flex;
   gap: 10px;
@@ -116,7 +197,7 @@
   color: var(--text-1);
 }
 
-.actionBtnDelete:hover {
+.deleteBtn:hover {
   color: var(--red);
 }
 
@@ -141,6 +222,140 @@
   margin-top: 4px;
 }
 
+/* Toolbar: attach + mention buttons above textarea */
+.toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.toolBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-size: 12px;
+  font-family: var(--font);
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.toolBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Hidden file input */
+.fileInput {
+  display: none;
+}
+
+/* Pending attachments preview */
+.pendingAttachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pendingItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--text-2);
+  max-width: 200px;
+}
+
+.pendingName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.pendingRemove {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-3);
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.pendingRemove:hover {
+  color: var(--red);
+}
+
+/* @mention autocomplete dropdown */
+.mentionWrap {
+  position: relative;
+}
+
+.mentionDropdown {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  z-index: 50;
+  overflow: hidden;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.mentionItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text-1);
+  transition: background 0.1s;
+}
+
+.mentionItem:hover,
+.mentionItemActive {
+  background: var(--bg-2);
+}
+
+.mentionAvatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+}
+
+.mentionName {
+  font-weight: 500;
+}
+
+.mentionEmail {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
 .addActions {
   display: flex;
   justify-content: flex-end;
@@ -160,6 +375,7 @@
   font-family: var(--font);
   min-height: 72px;
   transition: border-color 0.15s;
+  box-sizing: border-box;
 }
 
 .textarea:focus {
@@ -231,5 +447,7 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }

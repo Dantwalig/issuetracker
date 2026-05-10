@@ -1,0 +1,186 @@
+.root {
+  margin-bottom: 20px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.sectionLabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-2);
+}
+
+.manageBtn {
+  font-size: 12px;
+  padding: 2px 10px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.manageBtn:hover { background: var(--bg-4, var(--bg-3)); }
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 24px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--text-3, var(--text-2));
+  opacity: 0.6;
+}
+
+/* ── Manager panel ── */
+.panel {
+  margin-top: 10px;
+  background: var(--bg-2, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.panelTitle {
+  font-size: 12px;
+  color: var(--text-2);
+  margin: 0 0 10px;
+}
+
+.labelList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.labelToggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-1);
+  text-align: left;
+  transition: background 0.12s;
+}
+.labelToggle:hover { background: var(--bg-3); }
+.labelToggle.assigned { background: var(--bg-3); border-color: var(--accent); }
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.labelName { flex: 1; }
+
+.checkmark {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.deleteLabel {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  border-radius: var(--radius);
+  font-size: 16px;
+  line-height: 1;
+  transition: color 0.12s, background 0.12s;
+}
+.deleteLabel:hover { color: #ef4444; background: #ef444422; }
+
+.noLabels {
+  font-size: 13px;
+  color: var(--text-2);
+  opacity: 0.7;
+  margin: 0;
+}
+
+.createForm {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.colorPicker {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px;
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.nameInput {
+  flex: 1;
+  height: 32px;
+  padding: 0 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-1);
+  font-size: 13px;
+  outline: none;
+}
+.nameInput:focus { border-color: var(--accent); }
+
+.createBtn {
+  height: 32px;
+  padding: 0 14px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  opacity: 1;
+  transition: opacity 0.15s;
+}
+.createBtn:disabled { opacity: 0.5; cursor: not-allowed; }

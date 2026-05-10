@@ -13,4 +13,11 @@ export const projectsApi = {
     api.post<Project>(`/projects/${id}/members`, { userId }).then((r) => r.data),
   removeMember: (id: string, userId: string) =>
     api.delete<Project>(`/projects/${id}/members/${userId}`).then((r) => r.data),
+  /** Promote a project member to Team Lead (admin only) */
+  promoteToTeamLead: (projectId: string, userId: string) =>
+    api.post(`/projects/${projectId}/members/${userId}/team-lead`).then((r) => r.data),
+  /** Revoke Team Lead from a project member (admin only) */
+  revokeTeamLead: (projectId: string, userId: string) =>
+    api.delete(`/projects/${projectId}/members/${userId}/team-lead`).then((r) => r.data),
 };
+

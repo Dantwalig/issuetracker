@@ -4,6 +4,7 @@ import {
   MinLength,
   IsEnum,
   IsOptional,
+  MaxLength,
 } from 'class-validator';
 import { Role } from '@prisma/client';
 
@@ -30,8 +31,8 @@ export class CreateUserDto {
   fullName: string;
 
   @IsOptional()
-  @IsEnum(['ADMIN', 'MEMBER'])
-  role?: 'ADMIN' | 'MEMBER';
+  @IsEnum(['ADMIN', 'TEAM_LEAD', 'MEMBER'])
+  role?: 'ADMIN' | 'TEAM_LEAD' | 'MEMBER';
 }
 
 export class ChangePasswordDto {
@@ -44,10 +45,10 @@ export class ChangePasswordDto {
   newPassword: string;
 }
 
-// Regular admins can only set ADMIN or MEMBER — SUPERADMIN has its own endpoint
+// Regular admins can only set ADMIN, TEAM_LEAD, or MEMBER — SUPERADMIN has its own endpoint
 export class UpdateRoleDto {
-  @IsEnum(['ADMIN', 'MEMBER'])
-  role: 'ADMIN' | 'MEMBER';
+  @IsEnum(['ADMIN', 'TEAM_LEAD', 'MEMBER'])
+  role: 'ADMIN' | 'TEAM_LEAD' | 'MEMBER';
 }
 
 export class ForgotPasswordDto {
@@ -62,4 +63,17 @@ export class ResetPasswordDto {
   @IsString()
   @MinLength(6)
   newPassword: string;
+}
+
+export class UpdateProfileDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  // 500KB image → ~680KB base64; 700 000 chars is a comfortable ceiling
+  @MaxLength(700_000)
+  avatarUrl?: string;
 }

@@ -10,6 +10,8 @@ import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/lib/auth-context';
 import { format } from 'date-fns';
 import styles from './page.module.css';
+import { DeleteModal } from '@/components/ui/DeleteModal';
+import { recycleBinApi } from '@/lib/recycle-bin-api';
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +28,7 @@ export default function ProjectDetailPage() {
   const [editTeamId, setEditTeamId] = useState('');
   const [editError, setEditError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
 
   const { data: project, isLoading, isError } = useQuery({
     queryKey: ['project', id],
@@ -51,6 +54,16 @@ export default function ProjectDetailPage() {
 
   const removeMemberMutation = useMutation({
     mutationFn: (userId: string) => projectsApi.removeMember(id, userId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['project', id] }),
+  });
+
+  const promoteTeamLeadMutation = useMutation({
+    mutationFn: (userId: string) => projectsApi.promoteToTeamLead(id, userId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['project', id] }),
+  });
+
+  const revokeTeamLeadMutation = useMutation({
+    mutationFn: (userId: string) => projectsApi.revokeTeamLead(id, userId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['project', id] }),
   });
 
@@ -92,6 +105,7 @@ export default function ProjectDetailPage() {
         <button className={styles.backBtn} onClick={() => router.push('/projects')}>← All projects</button>
         <div className={styles.topActions}>
           {isAdmin && <button className={styles.editBtn} onClick={openEdit}>Edit</button>}
+          {isAdmin && <button onClick={() => setShowDelete(true)} style={{background:'none',border:'1px solid var(--danger,#ef4444)',color:'var(--danger,#ef4444)',padding:'0 12px',height:32,borderRadius:'var(--radius)',fontSize:13,cursor:'pointer'}}>Delete</button>}
           <button className={styles.issuesBtn} onClick={() => router.push(`/projects/${id}/issues`)}>
             View issues →
           </button>
@@ -125,15 +139,42 @@ export default function ProjectDetailPage() {
           <div className={styles.memberList}>
             {project.members.length === 0 && <p className={styles.empty}>No members yet.</p>}
             {project.members.map((m) => (
-              <div key={m.user.id} className={styles.memberRow}>
-                <div className={styles.memberAvatar}>{m.user.fullName[0].toUpperCase()}</div>
+              <div key={m.user?.id} className={styles.memberRow}>
+                <div className={styles.memberAvatar}>{m.user?.fullName?.[0]?.toUpperCase()}</div>
                 <div className={styles.memberInfo}>
-                  <span className={styles.memberName}>{m.user.fullName}</span>
-                  <span className={styles.memberEmail}>{m.user.email}</span>
+                  <span className={styles.memberName}>{m.user?.fullName}</span>
+                  <span className={styles.memberEmail}>{m.user?.email}</span>
                 </div>
-                <span className={styles.memberRole}>{m.user.role}</span>
+                <span className={styles.memberRole}>{m.user?.role}</span>
+                {m.scopedRole === 'TEAM_LEAD' && (
+                  <span style={{ fontSize: 11, fontWeight: 600, background: 'var(--accent, #6366f1)', color: '#fff', borderRadius: 4, padding: '2px 7px', marginLeft: 4 }}>
+                    Team Lead
+                  </span>
+                )}
+                {isAdmin && m.scopedRole !== 'TEAM_LEAD' && (
+                  <button
+                    className={styles.removeBtn}
+                    style={{ background: 'none', border: '1px solid var(--accent, #6366f1)', color: 'var(--accent, #6366f1)', marginLeft: 4 }}
+                    onClick={() => promoteTeamLeadMutation.mutate(m.user?.id)}
+                    disabled={promoteTeamLeadMutation.isPending}
+                    title="Promote to Team Lead"
+                  >
+                    Make Lead
+                  </button>
+                )}
+                {isAdmin && m.scopedRole === 'TEAM_LEAD' && (
+                  <button
+                    className={styles.removeBtn}
+                    style={{ background: 'none', border: '1px solid #f59e0b', color: '#f59e0b', marginLeft: 4 }}
+                    onClick={() => revokeTeamLeadMutation.mutate(m.user?.id)}
+                    disabled={revokeTeamLeadMutation.isPending}
+                    title="Revoke Team Lead"
+                  >
+                    Revoke Lead
+                  </button>
+                )}
                 {isAdmin && (
-                  <button className={styles.removeBtn} onClick={() => removeMemberMutation.mutate(m.user.id)} disabled={removeMemberMutation.isPending}>
+                  <button className={styles.removeBtn} onClick={() => removeMemberMutation.mutate(m.user?.id)} disabled={removeMemberMutation.isPending}>
                     Remove
                   </button>
                 )}
@@ -188,6 +229,17 @@ export default function ProjectDetailPage() {
             </div>
           </form>
         </Modal>
+      )}
+      {showDelete && (
+        <DeleteModal
+          itemName={project.name}
+          itemType="project"
+          onConfirm={async (reason) => {
+            await recycleBinApi.deleteProject(id, reason);
+            router.push('/projects');
+          }}
+          onCancel={() => setShowDelete(false)}
+        />
       )}
     </div>
   );

@@ -19,6 +19,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   UpdateRoleDto,
+  UpdateProfileDto,
 } from './dto/auth.dto';
 import { Role } from '@prisma/client';
 
@@ -257,7 +258,7 @@ export class AuthService {
         email: dto.email,
         fullName: dto.fullName,
         passwordHash,
-        role: dto.role ?? Role.MEMBER,
+        role: (dto.role ?? Role.MEMBER) as Role,
         mustChangePassword: true,
       },
     });
@@ -290,6 +291,11 @@ export class AuthService {
     // Only SUPERADMIN can change another admin's role
     if (user.role === 'ADMIN' && callerRole !== 'SUPERADMIN') {
       throw new ForbiddenException('Only a superadmin can change another admin\'s role');
+    }
+
+    // Only SUPERADMIN can promote to ADMIN
+    if (dto.role === 'ADMIN' && callerRole !== 'SUPERADMIN') {
+      throw new ForbiddenException('Only a superadmin can assign the Admin role');
     }
 
     // Nobody can demote a SUPERADMIN via this endpoint
@@ -398,16 +404,34 @@ export class AuthService {
       data: { assigneeId: null },
     });
 
-    // 2. Issues where user is the reporter — reassign to a system placeholder or delete
-    //    Deleting reported issues also cascades their comments, so this is safe.
-    await this.prisma.issue.deleteMany({
-      where: { reporterId: targetId },
+    // 2. Activity logs authored by this user
+    await this.prisma.activityLog.deleteMany({
+      where: { userId: targetId },
     });
 
-    // 3. Comments authored by this user on issues they did NOT report
-    //    (issues they reported were already deleted above)
+    // 3. Direct messages sent or received by this user
+    await this.prisma.directMessage.deleteMany({
+      where: { OR: [{ senderId: targetId }, { receiverId: targetId }] },
+    });
+
+    // 4. Comments authored by this user
     await this.prisma.comment.deleteMany({
       where: { authorId: targetId },
+    });
+
+    // 5. Issues where user is reporter or createdBy — cascades their comments
+    await this.prisma.issue.deleteMany({
+      where: { OR: [{ reporterId: targetId }, { createdById: targetId }] },
+    });
+
+    // 6. Projects created by this user
+    await this.prisma.project.deleteMany({
+      where: { createdById: targetId },
+    });
+
+    // 7. Teams created by this user
+    await this.prisma.team.deleteMany({
+      where: { createdById: targetId },
     });
 
     await this.prisma.user.delete({ where: { id: targetId } });
@@ -499,6 +523,17 @@ export class AuthService {
     await this.prisma.user.update({
       where: { id: userId },
       data: { refreshTokenHash: hash },
+    });
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const data: any = {};
+    if (dto.fullName) data.fullName = dto.fullName;
+    if (dto.avatarUrl !== undefined) data.avatarUrl = dto.avatarUrl;
+    return this.prisma.user.update({
+      where: { id: userId },
+      data,
+      select: { id: true, email: true, fullName: true, role: true, avatarUrl: true, isActive: true, mustChangePassword: true },
     });
   }
 }

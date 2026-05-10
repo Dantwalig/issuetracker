@@ -10,6 +10,12 @@ export interface CreateNotificationPayload {
   message: string;
   issueId?: string;
   projectId?: string;
+  /** Extra context passed straight through to the email template */
+  emailContext?: {
+    senderName?: string;
+    issueTitle?: string;
+    projectName?: string;
+  };
 }
 
 @Injectable()
@@ -18,8 +24,6 @@ export class NotificationsService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
   ) {}
-
-  // ── Internal: create one or many notifications ────────────────────────────
 
   async create(payload: CreateNotificationPayload) {
     const notification = await this.prisma.notification.create({
@@ -33,26 +37,16 @@ export class NotificationsService {
       },
     });
 
-    // Fire-and-forget email to the recipient
-    void this.sendEmailForNotification(payload);
-
+    void this.sendEmail(payload);
     return notification;
   }
 
   async createMany(payloads: CreateNotificationPayload[]) {
     if (payloads.length === 0) return;
-
-    const result = await this.prisma.notification.createMany({
-      data: payloads,
-    });
-
-    // Send emails for all notifications concurrently
-    void Promise.all(payloads.map((p) => this.sendEmailForNotification(p)));
-
+    const result = await this.prisma.notification.createMany({ data: payloads });
+    void Promise.all(payloads.map((p) => this.sendEmail(p)));
     return result;
   }
-
-  // ── User-facing queries & mutations ───────────────────────────────────────
 
   async listForUser(userId: string) {
     return this.prisma.notification.findMany({
@@ -63,44 +57,39 @@ export class NotificationsService {
   }
 
   async unreadCountForUser(userId: string) {
-    return this.prisma.notification.count({
-      where: { userId, isRead: false },
-    });
+    return this.prisma.notification.count({ where: { userId, isRead: false } });
   }
 
   async markOneRead(id: string, userId: string) {
-    return this.prisma.notification.updateMany({
-      where: { id, userId },
-      data: { isRead: true },
-    });
+    return this.prisma.notification.updateMany({ where: { id, userId }, data: { isRead: true } });
   }
 
   async markAllRead(userId: string) {
-    return this.prisma.notification.updateMany({
-      where: { userId, isRead: false },
-      data: { isRead: true },
-    });
+    return this.prisma.notification.updateMany({ where: { userId, isRead: false }, data: { isRead: true } });
   }
 
-  // ── Private helpers ───────────────────────────────────────────────────────
+  // ── Private ───────────────────────────────────────────────────────────────
 
-  private async sendEmailForNotification(
-    payload: CreateNotificationPayload,
-  ): Promise<void> {
+  private async sendEmail(payload: CreateNotificationPayload): Promise<void> {
     try {
       const user = await this.prisma.user.findUnique({
         where: { id: payload.userId },
-        select: { email: true, isActive: true },
+        select: { email: true, fullName: true, isActive: true },
       });
       if (!user || !user.isActive) return;
 
-      await this.emailService.sendNotification({
+      await this.emailService.sendNotificationEmail({
         to: user.email,
+        recipientName: user.fullName,
+        type: payload.type,
         title: payload.title,
         message: payload.message,
+        issueId: payload.issueId,
+        projectId: payload.projectId,
+        ...payload.emailContext,
       });
     } catch {
-      // Never let email errors bubble up and break the notification flow
+      // Never let email errors break the notification flow
     }
   }
 }
