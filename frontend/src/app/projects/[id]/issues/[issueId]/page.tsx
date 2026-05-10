@@ -20,7 +20,9 @@ import { recycleBinApi } from '@/lib/recycle-bin-api';
 import { deletionRequestsApi } from '@/lib/deletion-requests-api';
 import { IssueUser } from '@/types';
 import { format } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
 import { useShortcut } from '@/lib/keyboard-shortcuts';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import styles from './page.module.css';
 
 export default function IssueDetailPage() {
@@ -168,7 +170,7 @@ export default function IssueDetailPage() {
 
         <h1 className={styles.title}>{issue.title}</h1>
         {issue.description
-          ? <p className={styles.description}>{issue.description}</p>
+          ? <MarkdownRenderer content={issue.description} className={styles.description} />
           : <p className={styles.noDesc}>No description provided.</p>}
 
         <div className={styles.meta}>

@@ -189,7 +189,6 @@ export class SprintsService {
     if (alreadyActive) {
       throw new ConflictException('Another sprint is already active in this project');
     }
-
     const project = await this.prisma.project.findUnique({
       where: { id: sprint.projectId },
       select: { name: true },
