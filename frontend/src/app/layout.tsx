@@ -5,7 +5,7 @@ import { QueryProvider } from '@/components/providers';
 import { KeyboardShortcutsProvider } from '@/lib/keyboard-shortcuts';
 
 export const metadata: Metadata = {
-  title: 'Trackr — Issue Tracker',
+  title: 'Trackr ',
   description: 'Internal issue tracking for your team',
 };
 
