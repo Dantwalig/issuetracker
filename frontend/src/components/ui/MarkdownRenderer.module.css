@@ -32,6 +32,24 @@
   margin-bottom: 0.25rem;
 }
 
+.markdown li.task-list-item {
+  list-style-type: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.markdown li.task-list-item input[type="checkbox"] {
+  margin: 0;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+}
+
+.markdown ul.contains-task-list {
+  padding-left: 0.5rem;
+}
+
 .markdown code {
   background-color: var(--bg-3);
   padding: 0.2rem 0.4rem;

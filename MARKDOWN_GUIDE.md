@@ -34,6 +34,12 @@ Use `#` for headings:
 2. Second item
 ```
 
+**Task Lists:**
+```markdown
+- [x] Completed task
+- [ ] Incomplete task
+```
+
 ### Links and Images
 ```markdown
 [Link Text](https://example.com)
