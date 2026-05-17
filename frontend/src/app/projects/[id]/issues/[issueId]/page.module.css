@@ -13,7 +13,7 @@
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 28px; }
 .badgeRow { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 .title { font-size: 22px; font-weight: 700; color: var(--text-primary); margin: 0 0 14px; line-height: 1.3; }
-.description { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin: 0 0 24px; white-space: pre-wrap; }
+.description { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin: 0 0 24px; }
 .noDesc { font-size: 14px; color: var(--text-muted); font-style: italic; margin: 0 0 24px; }
 .meta { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; padding-top: 20px; border-top: 1px solid var(--border); }
 .metaItem { display: flex; flex-direction: column; gap: 4px; }
