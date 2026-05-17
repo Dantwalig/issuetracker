@@ -104,6 +104,7 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
+        avatarUrl: user.avatarUrl,
         mustChangePassword: user.mustChangePassword,
       },
     };
@@ -158,6 +159,7 @@ export class AuthService {
         email: true,
         fullName: true,
         role: true,
+        avatarUrl: true,
         isActive: true,
         mustChangePassword: true,
         createdAt: true,
