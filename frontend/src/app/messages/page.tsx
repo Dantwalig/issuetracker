@@ -12,6 +12,7 @@ import {
 import { format, isToday, isYesterday, isSameDay, differenceInMinutes } from 'date-fns';
 import { useShortcut } from '@/lib/keyboard-shortcuts';
 import styles from './page.module.css';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 
 function initials(name: string) {
   return name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
@@ -299,13 +300,37 @@ function PendingInviteBanner({ request, currentUserId, onRespond, onCancel }: {
 
 function EditBox({ body, onSave, onCancel }: { body: string; onSave: (v: string) => void; onCancel: () => void }) {
   const [val, setVal] = useState(body);
+  const editRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const textarea = editRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+    }
+  }, [val]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <textarea value={val} onChange={(e) => setVal(e.target.value)} autoFocus style={{ padding: '6px 10px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--accent)', color: 'var(--text-1)', fontSize: 14, resize: 'none', outline: 'none', fontFamily: 'inherit', lineHeight: 1.5, minWidth: 160 }} rows={2}
-        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSave(val.trim()); } if (e.key === 'Escape') onCancel(); }} />
+      <textarea
+        ref={editRef}
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        autoFocus
+        className={styles.editInput}
+        rows={1}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            const trimmed = val.trim();
+            if (trimmed) onSave(trimmed);
+          }
+          if (e.key === 'Escape') onCancel();
+        }}
+      />
       <div style={{ display: 'flex', gap: 6, fontSize: 11 }}>
-        <button onClick={() => onSave(val.trim())} style={{ padding: '3px 8px', background: 'var(--accent)', border: 'none', borderRadius: 4, color: '#fff', cursor: 'pointer' }}>Save</button>
-        <button onClick={onCancel} style={{ padding: '3px 8px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-2)', cursor: 'pointer' }}>Cancel</button>
+        <button onClick={() => val.trim() && onSave(val.trim())} className={styles.editSaveBtn}>Save</button>
+        <button onClick={onCancel} className={styles.editCancelBtn}>Cancel</button>
       </div>
     </div>
   );
@@ -330,8 +355,8 @@ function Bubble({ id, body, isMine, isFirst, isLast, time, editedAt, senderName,
             ? <EditBox body={body} onSave={onEditSave} onCancel={onEditCancel} />
             : (
               <div className={`${styles.bubble} ${isMine ? styles.bubbleMine : styles.bubbleTheirs} ${isFirst ? styles.bubbleFirst : ''}`}>
-                {body}
-                {editedAt && <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 6 }}>(edited)</span>}
+                <MarkdownRenderer content={body.replace(/\n/g, '  \n')} className={isMine ? styles.markdownMine : styles.markdownTheirs} />
+                {editedAt && <span style={{ fontSize: 10, opacity: 0.6, display: 'block', marginTop: 4, textAlign: isMine ? 'right' : 'left' }}>(edited)</span>}
               </div>
             )}
           {isLast && !isEditing && (
@@ -381,6 +406,15 @@ export default function MessagesPage() {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [dmMessages, groupMessages]);
   useEffect(() => { if (dmPartnerId) qc.invalidateQueries({ queryKey: ['dm-conversations'] }); }, [dmMessages.length, dmPartnerId]);
+
+  // Auto-resize the compose textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+    }
+  }, [draft, dmPartnerId, groupId]);
 
   useShortcut('messages:new', { key: 'n', description: 'New conversation', group: 'Messages', action: () => setShowPicker(true), disabled: showPicker });
   useShortcut('messages:escape', { key: 'Escape', description: 'Close / deselect', group: 'Global', action: () => { if (showPicker) { setShowPicker(false); return; } setActiveChat(null); }, disabled: !showPicker && !activeChat });
@@ -472,7 +506,7 @@ export default function MessagesPage() {
                   <GroupAvatar members={g.members.filter((m) => m.userId !== user.id)} size={38} />
                   <div className={styles.convInfo}>
                     <p className={styles.convName}>{g.name} <span style={{ fontSize: 10, color: 'var(--text-3)', background: 'var(--bg-3)', padding: '1px 5px', borderRadius: 4, fontWeight: 400 }}>{g.members.length}</span></p>
-                    <p className={styles.convLast}>{lastMsg ? `${lastMsg.sender.id === user.id ? 'You' : lastMsg.sender.fullName}: ${lastMsg.body}` : 'No messages yet'}</p>
+                    <p className={styles.convLast}>{lastMsg ? `${lastMsg.sender.id === user.id ? 'You' : lastMsg.sender.fullName}: ${lastMsg.body.replace(/\s+/g, ' ')}` : 'No messages yet'}</p>
                   </div>
                   {lastMsg && <div className={styles.convMeta}><span className={styles.convTime}>{format(new Date(lastMsg.createdAt), isToday(new Date(lastMsg.createdAt)) ? 'HH:mm' : 'MMM d')}</span></div>}
                 </div>
@@ -487,7 +521,7 @@ export default function MessagesPage() {
                   <Avatar user={conv.partner} size={38} />
                   <div className={styles.convInfo}>
                     <p className={styles.convName}>{conv.partner.fullName}</p>
-                    <p className={styles.convLast}>{conv.lastMessage.senderId === user.id ? 'You: ' : ''}{conv.lastMessage.body}</p>
+                    <p className={styles.convLast}>{conv.lastMessage.senderId === user.id ? 'You: ' : ''}{conv.lastMessage.body.replace(/\s+/g, ' ')}</p>
                   </div>
                   <div className={styles.convMeta}>
                     <span className={styles.convTime}>{format(new Date(conv.lastMessage.createdAt), isToday(new Date(conv.lastMessage.createdAt)) ? 'HH:mm' : 'MMM d')}</span>
