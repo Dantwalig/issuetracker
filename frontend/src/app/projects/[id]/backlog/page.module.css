@@ -114,3 +114,46 @@
 }
 .sprintBtn:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
 .sprintBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Skeleton loader styles */
+.skeletonRow {
+  cursor: default !important;
+}
+.skeletonRow:hover {
+  background: none !important;
+}
+.skeletonLine {
+  height: 14px;
+  background: var(--bg-3);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.skeletonBadge {
+  height: 22px;
+  background: var(--bg-3);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  width: 70px;
+}
+.skeletonLine::after,
+.skeletonBadge::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmer 1.5s infinite;
+  transform: translateX(-100%);
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+

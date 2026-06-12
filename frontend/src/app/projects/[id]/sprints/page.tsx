@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { sprintsApi } from '@/lib/sprints-api';
 import { projectsApi } from '@/lib/projects-api';
 import { useAuth } from '@/lib/auth-context';
+import { useHeader } from '@/lib/header-context';
 import { canManageSprints } from '@/lib/permissions';
 import { Sprint, SprintStatus } from '@/types';
 import { Modal } from '@/components/ui/Modal';
@@ -23,12 +24,37 @@ export default function SprintsPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const { setBreadcrumbs, setActions } = useHeader();
+
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => projectsApi.get(projectId),
   });
 
+  const projectName = project?.name ?? '…';
+
   const isManager = canManageSprints(user, project);
+
+  useEffect(() => {
+    setBreadcrumbs([
+      { label: 'Projects', href: '/projects' },
+      { label: projectName, href: `/projects/${projectId}` },
+      { label: 'Sprints' },
+    ]);
+    if (isManager) {
+      setActions(
+        <button className={styles.createBtn} onClick={() => setShowCreate(true)}>
+          + New sprint
+        </button>
+      );
+    } else {
+      setActions(null);
+    }
+    return () => {
+      setBreadcrumbs([]);
+      setActions(null);
+    };
+  }, [setBreadcrumbs, setActions, projectId, projectName, isManager]);
 
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
@@ -112,27 +138,7 @@ export default function SprintsPage() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.header}>
-        <div className={styles.breadcrumb}>
-          <button className={styles.breadLink} onClick={() => router.push('/projects')}>
-            Projects
-          </button>
-          <span className={styles.sep}>/</span>
-          <button className={styles.breadLink} onClick={() => router.push(`/projects/${projectId}`)}>
-            {project?.name ?? '…'}
-          </button>
-          <span className={styles.sep}>/</span>
-          <span className={styles.breadCurrent}>Sprints</span>
-        </div>
-        {isManager && (
-          <button className={styles.createBtn} onClick={() => setShowCreate(true)}>
-            + New sprint
-          </button>
-        )}
-      </div>
-
-      <div className={styles.titleRow}>
-        <h1 className={styles.heading}>Sprints</h1>
+      <div className={styles.titleRow} style={{ marginBottom: '16px' }}>
         <p className={styles.sub}>{sprints.length} total</p>
       </div>
 

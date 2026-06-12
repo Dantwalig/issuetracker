@@ -3,6 +3,7 @@ import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 import { QueryProvider } from '@/components/providers';
 import { KeyboardShortcutsProvider } from '@/lib/keyboard-shortcuts';
+import { HeaderProvider } from '@/lib/header-context';
 
 export const metadata: Metadata = {
   title: 'Trackr — Issue Tracker',
@@ -19,10 +20,15 @@ export default function RootLayout({
       <body>
         <QueryProvider>
           <KeyboardShortcutsProvider>
-            <AuthProvider>{children}</AuthProvider>
+            <AuthProvider>
+              <HeaderProvider>
+                {children}
+              </HeaderProvider>
+            </AuthProvider>
           </KeyboardShortcutsProvider>
         </QueryProvider>
       </body>
     </html>
   );
 }
+

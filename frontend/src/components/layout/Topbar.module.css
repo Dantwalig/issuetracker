@@ -55,3 +55,44 @@
   font-size: 13px; font-weight: 600;
   color: var(--accent);
 }
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.crumbItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.breadLink {
+  color: var(--text-2);
+  transition: color 0.1s;
+}
+
+.breadLink:hover {
+  color: var(--text-1);
+}
+
+.sep {
+  color: var(--text-3);
+  user-select: none;
+}
+
+.breadCurrent {
+  color: var(--text-1);
+  font-weight: 500;
+}
+
+.pageActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 8px;
+}
+
+
