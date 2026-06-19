@@ -1,4 +1,5 @@
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import styles from './MarkdownRenderer.module.css';
 
 interface Props {
@@ -9,7 +10,7 @@ interface Props {
 export function MarkdownRenderer({ content, className }: Props) {
   return (
     <div className={`${styles.markdown} ${className ?? ''}`}>
-      <ReactMarkdown>{content}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   );
 }

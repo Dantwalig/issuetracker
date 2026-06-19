@@ -95,6 +95,7 @@ model User {
   teamMemberships   TeamMember[]
   projectMembers    ProjectMember[]
   comments          Comment[]
+  commentMentions   CommentMention[]
   notifications     Notification[]
   createdTeams      Team[]            @relation("TeamCreator")
   createdProjects   Project[]         @relation("ProjectCreator")
@@ -319,6 +320,7 @@ model CommentMention {
   createdAt DateTime @default(now())
 
   comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("comment_mentions")
 }

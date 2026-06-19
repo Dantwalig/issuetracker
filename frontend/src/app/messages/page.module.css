@@ -510,3 +510,129 @@
   margin: auto;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Custom Markdown & Inline Edit Styles ─────────────────────── */
+.markdownMine {
+  color: #ffffff !important;
+}
+
+.markdownMine p,
+.markdownTheirs p {
+  margin: 0 0 8px 0;
+}
+
+.markdownMine p:last-child,
+.markdownTheirs p:last-child {
+  margin-bottom: 0;
+}
+
+.markdownMine a {
+  color: #ffffff !important;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.markdownMine code {
+  background: rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 90%;
+}
+
+.markdownMine pre {
+  background: rgba(0, 0, 0, 0.25) !important;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin: 8px 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.markdownMine pre code {
+  color: #ffffff !important;
+  background: transparent !important;
+  padding: 0;
+}
+
+.markdownMine blockquote {
+  border-left: 3px solid rgba(255, 255, 255, 0.5) !important;
+  padding-left: 8px;
+  margin: 8px 0;
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.markdownTheirs {
+  color: var(--text-1);
+}
+
+.markdownTheirs a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.markdownTheirs code {
+  background: var(--bg-3);
+  color: var(--text-1);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 90%;
+}
+
+.markdownTheirs pre {
+  background: var(--bg-3);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin: 8px 0;
+  border: 1px solid var(--border);
+}
+
+.markdownTheirs pre code {
+  background: transparent !important;
+  padding: 0;
+}
+
+.markdownTheirs blockquote {
+  border-left: 3px solid var(--border) !important;
+  padding-left: 8px;
+  margin: 8px 0;
+  color: var(--text-2) !important;
+}
+
+.editInput {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  color: var(--text-1);
+  font-size: 14px;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  line-height: 1.5;
+  min-width: 200px;
+  max-width: 100%;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.editSaveBtn {
+  padding: 4px 10px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.editCancelBtn {
+  padding: 4px 10px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 12px;
+}
+

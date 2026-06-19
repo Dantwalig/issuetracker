@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { issuesApi } from '@/lib/issues-api';
@@ -20,12 +20,43 @@ const STATUS_FILTERS: { label: string; value: IssueStatus | 'ALL' }[] = [
   { label: 'Done', value: 'DONE' },
 ];
 
+type SortKey = 'title' | 'type' | 'status' | 'priority' | 'deadline' | 'storyPoints' | 'assignee' | 'reporter' | 'updatedAt';
+type SortDir = 'asc' | 'desc';
+
+const PRIORITY_ORDER: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+const STATUS_ORDER: Record<string, number> = { TODO: 0, IN_PROGRESS: 1, DONE: 2 };
+
+function sortIssues(issues: Issue[], key: SortKey, dir: SortDir): Issue[] {
+  return [...issues].sort((a, b) => {
+    let cmp = 0;
+    if (key === 'title') cmp = a.title.localeCompare(b.title);
+    else if (key === 'type') cmp = a.type.localeCompare(b.type);
+    else if (key === 'status') cmp = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+    else if (key === 'priority') cmp = (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9);
+    else if (key === 'deadline') {
+      const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+      const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+      cmp = da - db;
+    }
+    else if (key === 'storyPoints') cmp = (a.storyPoints ?? -1) - (b.storyPoints ?? -1);
+    else if (key === 'assignee') cmp = (a.assignee?.fullName ?? 'zzz').localeCompare(b.assignee?.fullName ?? 'zzz');
+    else if (key === 'reporter') cmp = (a.reporter?.fullName ?? '').localeCompare(b.reporter?.fullName ?? '');
+    else if (key === 'updatedAt') cmp = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+    return dir === 'asc' ? cmp : -cmp;
+  });
+}
+
 export default function ProjectIssuesPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [statusFilter, setStatusFilter] = useState<IssueStatus | 'ALL'>('ALL');
+  const [assigneeSearch, setAssigneeSearch] = useState('');
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('ALL');
+  const [titleSearch, setTitleSearch] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('updatedAt');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [creating, setCreating] = useState(false);
 
   const { data: project } = useQuery({
@@ -44,57 +75,81 @@ export default function ProjectIssuesPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['issues', projectId] }); setShowCreate(false); },
   });
 
-  const filtered = statusFilter === 'ALL' ? issues : issues.filter((i) => i.status === statusFilter);
-
   // Derive project members as IssueUser[] for the assignee dropdown
   const projectMembers: IssueUser[] = (project?.members ?? []).map((m) => m.user);
 
+  // Collect unique assignees from issues (covers past issues too)
+  const assigneeOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    issues.forEach((i) => {
+      if (i.assignee) map.set(i.assignee.id, i.assignee.fullName);
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [issues]);
+
+  // Filter & sort pipeline
+  const filtered = useMemo(() => {
+    let result = issues;
+
+    // Status filter
+    if (statusFilter !== 'ALL') result = result.filter((i) => i.status === statusFilter);
+
+    // Assignee dropdown filter
+    if (assigneeFilter !== 'ALL') {
+      if (assigneeFilter === 'UNASSIGNED') result = result.filter((i) => !i.assignee);
+      else result = result.filter((i) => i.assignee?.id === assigneeFilter);
+    }
+
+    // Assignee text search (searches by name)
+    if (assigneeSearch.trim()) {
+      const q = assigneeSearch.toLowerCase();
+      result = result.filter((i) =>
+        (i.assignee?.fullName ?? 'unassigned').toLowerCase().includes(q)
+      );
+    }
+
+    // Title search
+    if (titleSearch.trim()) {
+      const q = titleSearch.toLowerCase();
+      result = result.filter((i) => i.title.toLowerCase().includes(q));
+    }
+
+    return sortIssues(result, sortKey, sortDir);
+  }, [issues, statusFilter, assigneeFilter, assigneeSearch, titleSearch, sortKey, sortDir]);
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('asc'); }
+  }
+
+  function clearFilters() {
+    setStatusFilter('ALL');
+    setAssigneeFilter('ALL');
+    setAssigneeSearch('');
+    setTitleSearch('');
+    setSortKey('updatedAt');
+    setSortDir('desc');
+  }
+
+  const hasActiveFilters = statusFilter !== 'ALL' || assigneeFilter !== 'ALL' || assigneeSearch.trim() || titleSearch.trim();
+
   // Keyboard shortcuts
-  useShortcut('issues:create', {
-    key: 'n',
-    description: 'Create new issue',
-    group: 'Issues',
-    action: () => setShowCreate(true),
-  });
-  useShortcut('issues:create-escape', {
-    key: 'Escape',
-    description: 'Close dialog / cancel',
-    group: 'Global',
-    action: () => setShowCreate(false),
-    disabled: !showCreate,
-  });
-  useShortcut('issues:filter-all', {
-    key: 'a',
-    description: 'Show all issues',
-    group: 'Issues',
-    action: () => setStatusFilter('ALL'),
-  });
-  useShortcut('issues:filter-todo', {
-    key: '1',
-    description: 'Filter: To Do',
-    group: 'Issues',
-    action: () => setStatusFilter('TODO'),
-  });
-  useShortcut('issues:filter-progress', {
-    key: '2',
-    description: 'Filter: In Progress',
-    group: 'Issues',
-    action: () => setStatusFilter('IN_PROGRESS'),
-  });
-  useShortcut('issues:filter-done', {
-    key: '3',
-    description: 'Filter: Done',
-    group: 'Issues',
-    action: () => setStatusFilter('DONE'),
-  });
+  useShortcut('issues:create', { key: 'n', description: 'Create new issue', group: 'Issues', action: () => setShowCreate(true) });
+  useShortcut('issues:create-escape', { key: 'Escape', description: 'Close dialog / cancel', group: 'Global', action: () => setShowCreate(false), disabled: !showCreate });
+  useShortcut('issues:filter-all', { key: 'a', description: 'Show all issues', group: 'Issues', action: () => setStatusFilter('ALL') });
+  useShortcut('issues:filter-todo', { key: '1', description: 'Filter: To Do', group: 'Issues', action: () => setStatusFilter('TODO') });
+  useShortcut('issues:filter-progress', { key: '2', description: 'Filter: In Progress', group: 'Issues', action: () => setStatusFilter('IN_PROGRESS') });
+  useShortcut('issues:filter-done', { key: '3', description: 'Filter: Done', group: 'Issues', action: () => setStatusFilter('DONE') });
 
   async function handleCreate(data: any) {
     setCreating(true);
-    try {
-      await createMutation.mutateAsync(data);
-    } finally {
-      setCreating(false);
-    }
+    try { await createMutation.mutateAsync(data); }
+    finally { setCreating(false); }
+  }
+
+  function SortIcon({ col }: { col: SortKey }) {
+    if (sortKey !== col) return <span className={styles.sortIcon}>↕</span>;
+    return <span className={styles.sortIconActive}>{sortDir === 'asc' ? '↑' : '↓'}</span>;
   }
 
   return (
@@ -114,9 +169,10 @@ export default function ProjectIssuesPage() {
 
       <div className={styles.titleRow}>
         <h1 className={styles.heading}>Issues</h1>
-        <p className={styles.sub}>{issues.length} total</p>
+        <p className={styles.sub}>{filtered.length} of {issues.length}</p>
       </div>
 
+      {/* Status filter pills */}
       <div className={styles.filters}>
         {STATUS_FILTERS.map((f) => (
           <button
@@ -132,20 +188,63 @@ export default function ProjectIssuesPage() {
         ))}
       </div>
 
+      {/* Search & assignee filter row */}
+      <div className={styles.searchRow}>
+        <input
+          className={styles.searchInput}
+          type="text"
+          placeholder="Search issues by title…"
+          value={titleSearch}
+          onChange={(e) => setTitleSearch(e.target.value)}
+        />
+        <input
+          className={styles.searchInput}
+          type="text"
+          placeholder="Search by assignee name…"
+          value={assigneeSearch}
+          onChange={(e) => { setAssigneeSearch(e.target.value); setAssigneeFilter('ALL'); }}
+        />
+        <select
+          className={styles.assigneeSelect}
+          value={assigneeFilter}
+          onChange={(e) => { setAssigneeFilter(e.target.value); setAssigneeSearch(''); }}
+        >
+          <option value="ALL">All assignees</option>
+          <option value="UNASSIGNED">Unassigned</option>
+          {assigneeOptions.map(([id, name]) => (
+            <option key={id} value={id}>{name}</option>
+          ))}
+        </select>
+        {hasActiveFilters && (
+          <button className={styles.clearBtn} onClick={clearFilters}>✕ Clear</button>
+        )}
+      </div>
+
       {isLoading && <div className={styles.state}><span className={styles.spinner} /><span>Loading issues…</span></div>}
       {isError && <div className={styles.stateError}>Failed to load issues.</div>}
 
       {!isLoading && !isError && filtered.length === 0 && (
         <div className={styles.state}>
-          <p>No issues {statusFilter !== 'ALL' ? `with status "${statusFilter}"` : ''}.</p>
-          <button className={styles.inlineCreate} onClick={() => setShowCreate(true)}>Create the first one →</button>
+          <p>{hasActiveFilters ? 'No issues match your filters.' : 'No issues yet.'}</p>
+          {hasActiveFilters
+            ? <button className={styles.inlineCreate} onClick={clearFilters}>Clear filters</button>
+            : <button className={styles.inlineCreate} onClick={() => setShowCreate(true)}>Create the first one →</button>
+          }
         </div>
       )}
 
       {!isLoading && filtered.length > 0 && (
         <div className={styles.table}>
           <div className={styles.tableHead}>
-            <span>Title</span><span>Type</span><span>Status</span><span>Priority</span><span>Deadline</span><span>SP</span><span>Reporter</span><span>Updated</span>
+            <button className={styles.thBtn} onClick={() => handleSort('title')}>Title <SortIcon col="title" /></button>
+            <button className={styles.thBtn} onClick={() => handleSort('type')}>Type <SortIcon col="type" /></button>
+            <button className={styles.thBtn} onClick={() => handleSort('status')}>Status <SortIcon col="status" /></button>
+            <button className={styles.thBtn} onClick={() => handleSort('priority')}>Priority <SortIcon col="priority" /></button>
+            <button className={styles.thBtn} onClick={() => handleSort('deadline')}>Deadline <SortIcon col="deadline" /></button>
+            <button className={styles.thBtn} onClick={() => handleSort('storyPoints')}>SP <SortIcon col="storyPoints" /></button>
+            <button className={styles.thBtn} onClick={() => handleSort('assignee')}>Assignee <SortIcon col="assignee" /></button>
+            <button className={styles.thBtn} onClick={() => handleSort('reporter')}>Reporter <SortIcon col="reporter" /></button>
+            <button className={styles.thBtn} onClick={() => handleSort('updatedAt')}>Updated <SortIcon col="updatedAt" /></button>
           </div>
           {filtered.map((issue) => (
             <IssueRow key={issue.id} issue={issue}
@@ -178,6 +277,7 @@ function IssueRow({ issue, onClick }: { issue: Issue; onClick: () => void }) {
       <span><PriorityBadge priority={issue.priority} /></span>
       <span><DeadlineBadge deadline={issue.deadline} status={issue.status} /></span>
       <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>{issue.storyPoints != null ? issue.storyPoints : '—'}</span>
+      <span className={styles.assignee}>{issue.assignee?.fullName ?? <span className={styles.unassigned}>Unassigned</span>}</span>
       <span className={styles.reporter}>{issue.reporter?.fullName}</span>
       <span className={styles.date}>{formatDistanceToNow(new Date(issue.updatedAt), { addSuffix: true })}</span>
     </div>
