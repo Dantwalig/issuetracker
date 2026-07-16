@@ -342,7 +342,7 @@ export default function ProjectIssuesPage() {
               if (assigneeFilter !== 'ALL') params.set('assigneeId', assigneeFilter);
               if (assigneeSearch.trim()) params.set('assigneeSearch', assigneeSearch);
               if (titleSearch.trim()) params.set('title', titleSearch);
-              window.open(`/projects/${projectId}/issues/report?${params.toString()}`, '_blank');
+              window.open(`/report/projects/${projectId}?${params.toString()}`, '_blank');
             }}
             title="Open printable report in a new tab"
           >
