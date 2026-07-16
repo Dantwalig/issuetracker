@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { issuesApi } from '@/lib/issues-api';
 import { projectsApi } from '@/lib/projects-api';
 import { checklistsApi } from '@/lib/checklists-api';
@@ -403,7 +404,7 @@ export default function ProjectIssuesPage() {
             <IssueRow
               key={issue.id}
               issue={issue}
-              onClick={() => router.push(`/projects/${projectId}/issues/${issue.id}`)}
+              projectId={projectId}
             />
           ))}
         </div>
@@ -455,14 +456,12 @@ function TableSkeleton() {
   );
 }
 
-function IssueRow({ issue, onClick }: { issue: Issue; onClick: () => void }) {
+function IssueRow({ issue, projectId }: { issue: Issue; projectId: string }) {
   return (
-    <div
+    <Link
+      href={`/projects/${projectId}/issues/${issue.id}`}
       className={styles.tableRow}
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && onClick()}
+      style={{ textDecoration: 'none', color: 'inherit' }}
     >
       <span className={styles.issueTitle} title={issue.title}>
         {issue.title}
@@ -491,6 +490,6 @@ function IssueRow({ issue, onClick }: { issue: Issue; onClick: () => void }) {
       <span className={styles.date}>
         {formatDistanceToNow(new Date(issue.updatedAt), { addSuffix: true })}
       </span>
-    </div>
+    </Link>
   );
 }
