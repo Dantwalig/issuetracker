@@ -221,6 +221,7 @@ export default function BacklogPage() {
             <span>Priority</span>
             <span>Status</span>
             <span>Reporter</span>
+            <span>Assignee</span>
             <span>Updated</span>
             {activeSprint && isManager && <span />}
           </div>
@@ -325,6 +326,7 @@ function BacklogRow({
       <span><PriorityBadge priority={issue.priority} /></span>
       <span><StatusBadge status={issue.status} /></span>
       <span className={styles.meta}>{issue.reporter?.fullName}</span>
+      <span className={styles.meta}>{issue.assignee?.fullName ?? <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Unassigned</span>}</span>
       <span className={styles.date}>{formatDistanceToNow(new Date(issue.updatedAt), { addSuffix: true })}</span>
       {activeSprint && isManager && (
         <span onClick={(e) => e.stopPropagation()}>

@@ -6,7 +6,7 @@ import { KeyboardShortcutsProvider } from '@/lib/keyboard-shortcuts';
 import { HeaderProvider } from '@/lib/header-context';
 
 export const metadata: Metadata = {
-  title: 'Trackr — Issue Tracker',
+  title: 'Trackr ',
   description: 'Internal issue tracking for your team',
 };
 

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { issuesApi } from '@/lib/issues-api';
 import { projectsApi } from '@/lib/projects-api';
 import { checklistsApi } from '@/lib/checklists-api';
 import { useHeader } from '@/lib/header-context';
+import { useAuth } from '@/lib/auth-context';
 import { Issue, IssueStatus, IssueUser } from '@/types';
 import { StatusBadge, PriorityBadge, TypeBadge, DeadlineBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -22,21 +23,89 @@ const STATUS_FILTERS: { label: string; value: IssueStatus | 'ALL' }[] = [
   { label: 'Done', value: 'DONE' },
 ];
 
-type SortField = 'title' | 'type' | 'status' | 'priority' | 'deadline' | 'storyPoints' | 'assignee' | 'reporter' | 'updatedAt';
+type SortKey = 'title' | 'type' | 'status' | 'priority' | 'deadline' | 'storyPoints' | 'assignee' | 'reporter' | 'updatedAt';
+type SortDir = 'asc' | 'desc';
+
+const PRIORITY_ORDER: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+const STATUS_ORDER: Record<string, number> = { TODO: 0, IN_PROGRESS: 1, DONE: 2 };
+
+function sortIssues(issues: Issue[], key: SortKey, dir: SortDir): Issue[] {
+  return [...issues].sort((a, b) => {
+    let cmp = 0;
+    if (key === 'title') cmp = a.title.localeCompare(b.title);
+    else if (key === 'type') cmp = a.type.localeCompare(b.type);
+    else if (key === 'status') cmp = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+    else if (key === 'priority') cmp = (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9);
+    else if (key === 'deadline') {
+      const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+      const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+      cmp = da - db;
+    }
+    else if (key === 'storyPoints') cmp = (a.storyPoints ?? -1) - (b.storyPoints ?? -1);
+    else if (key === 'assignee') cmp = (a.assignee?.fullName ?? 'zzz').localeCompare(b.assignee?.fullName ?? 'zzz');
+    else if (key === 'reporter') cmp = (a.reporter?.fullName ?? '').localeCompare(b.reporter?.fullName ?? '');
+    else if (key === 'updatedAt') cmp = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+    return dir === 'asc' ? cmp : -cmp;
+  });
+}
 
 export default function ProjectIssuesPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
   const { setBreadcrumbs, setActions } = useHeader();
+  const { user } = useAuth();
 
   const [showCreate, setShowCreate] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<IssueStatus | 'ALL'>('ALL');
   const [creating, setCreating] = useState(false);
 
-  // Sorting state
-  const [sortField, setSortField] = useState<SortField>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  // Read initial states from sessionStorage (locked-in filters)
+  const [statusFilter, setStatusFilter] = useState<IssueStatus | 'ALL'>(() => {
+    if (typeof window !== 'undefined') {
+      return (sessionStorage.getItem('issues_statusFilter') as IssueStatus) || 'ALL';
+    }
+    return 'ALL';
+  });
+  const [assigneeSearch, setAssigneeSearch] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('issues_assigneeSearch') || '';
+    }
+    return '';
+  });
+  const [assigneeFilter, setAssigneeFilter] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('issues_assigneeFilter') || 'ALL';
+    }
+    return 'ALL';
+  });
+  const [titleSearch, setTitleSearch] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('issues_titleSearch') || '';
+    }
+    return '';
+  });
+  const [sortKey, setSortKey] = useState<SortKey>(() => {
+    if (typeof window !== 'undefined') {
+      return (sessionStorage.getItem('issues_sortKey') as SortKey) || 'updatedAt';
+    }
+    return 'updatedAt';
+  });
+  const [sortDir, setSortDir] = useState<SortDir>(() => {
+    if (typeof window !== 'undefined') {
+      return (sessionStorage.getItem('issues_sortDir') as SortDir) || 'desc';
+    }
+    return 'desc';
+  });
+
+  // Keep sessionStorage in sync
+  useEffect(() => {
+    sessionStorage.setItem('issues_statusFilter', statusFilter);
+    sessionStorage.setItem('issues_assigneeSearch', assigneeSearch);
+    sessionStorage.setItem('issues_assigneeFilter', assigneeFilter);
+    sessionStorage.setItem('issues_titleSearch', titleSearch);
+    sessionStorage.setItem('issues_sortKey', sortKey);
+    sessionStorage.setItem('issues_sortDir', sortDir);
+  }, [statusFilter, assigneeSearch, assigneeFilter, titleSearch, sortKey, sortDir]);
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -67,7 +136,6 @@ export default function ProjectIssuesPage() {
     };
   }, [setBreadcrumbs, setActions, projectId, projectName]);
 
-
   const createMutation = useMutation({
     mutationFn: (data: Omit<Parameters<typeof issuesApi.create>[1], never>) =>
       issuesApi.create(projectId, data),
@@ -77,46 +145,66 @@ export default function ProjectIssuesPage() {
     },
   });
 
-  const filtered = statusFilter === 'ALL' ? issues : issues.filter((i) => i.status === statusFilter);
+  // Derive project members as IssueUser[] for the assignee dropdown
+  const projectMembers: IssueUser[] = (project?.members ?? []).map((m) => m.user);
 
-  // Client-side sorting
-  const sortedIssues = [...filtered].sort((a, b) => {
-    let valA: any = a[sortField];
-    let valB: any = b[sortField];
+  // Collect unique assignees from issues (covers past issues too)
+  const assigneeOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    issues.forEach((i) => {
+      if (i.assignee) map.set(i.assignee.id, i.assignee.fullName);
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [issues]);
 
-    if (sortField === 'assignee') {
-      valA = a.assignee?.fullName ?? '';
-      valB = b.assignee?.fullName ?? '';
-    } else if (sortField === 'reporter') {
-      valA = a.reporter?.fullName ?? '';
-      valB = b.reporter?.fullName ?? '';
+  // Filter & sort pipeline
+  const sortedIssues = useMemo(() => {
+    let result = issues;
+
+    // Status filter
+    if (statusFilter !== 'ALL') result = result.filter((i) => i.status === statusFilter);
+
+    // Assignee dropdown filter
+    if (assigneeFilter !== 'ALL') {
+      if (assigneeFilter === 'UNASSIGNED') result = result.filter((i) => !i.assignee);
+      else result = result.filter((i) => i.assignee?.id === assigneeFilter);
     }
 
-    if (valA == null) return sortOrder === 'asc' ? 1 : -1;
-    if (valB == null) return sortOrder === 'asc' ? -1 : 1;
-
-    if (typeof valA === 'string') {
-      return sortOrder === 'asc'
-        ? valA.localeCompare(valB)
-        : valB.localeCompare(valA);
-    } else {
-      return sortOrder === 'asc'
-        ? (valA as number) - (valB as number)
-        : (valB as number) - (valA as number);
+    // Assignee text search (searches by name)
+    if (assigneeSearch.trim()) {
+      const q = assigneeSearch.toLowerCase();
+      result = result.filter((i) =>
+        (i.assignee?.fullName ?? 'unassigned').toLowerCase().includes(q)
+      );
     }
-  });
 
-  function toggleSort(field: SortField) {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
+    // Title search
+    if (titleSearch.trim()) {
+      const q = titleSearch.toLowerCase();
+      result = result.filter((i) => i.title.toLowerCase().includes(q));
+    }
+
+    return sortIssues(result, sortKey, sortDir);
+  }, [issues, statusFilter, assigneeFilter, assigneeSearch, titleSearch, sortKey, sortDir]);
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(key);
+      setSortDir('asc');
     }
   }
 
-  // Derive project members as IssueUser[] for the assignee dropdown
-  const projectMembers: IssueUser[] = (project?.members ?? []).map((m) => m.user);
+  function clearFilters() {
+    setStatusFilter('ALL');
+    setAssigneeFilter('ALL');
+    setAssigneeSearch('');
+    setTitleSearch('');
+    setSortKey('updatedAt');
+    setSortDir('desc');
+  }
+
+  const hasActiveFilters = statusFilter !== 'ALL' || assigneeFilter !== 'ALL' || assigneeSearch.trim() || titleSearch.trim();
 
   // Keyboard shortcuts
   useShortcut('issues:create', {
@@ -175,25 +263,20 @@ export default function ProjectIssuesPage() {
     }
   }
 
-  const renderHeader = (label: string, field: SortField) => {
-    const isCurrent = sortField === field;
-    return (
-      <span
-        className={`${styles.sortableHeader} ${isCurrent ? styles.activeSort : ''}`}
-        onClick={() => toggleSort(field)}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && toggleSort(field)}
-      >
-        {label} {isCurrent && (sortOrder === 'asc' ? '↑' : '↓')}
-      </span>
-    );
-  };
+  function SortIcon({ col }: { col: SortKey }) {
+    if (sortKey !== col) return <span className={styles.sortIcon}>↕</span>;
+    return <span className={styles.sortIconActive}>{sortDir === 'asc' ? '↑' : '↓'}</span>;
+  }
 
   return (
     <div className={styles.page}>
+      <div className={styles.titleRow} style={{ marginBottom: '12px' }}>
+        <p className={styles.sub}>
+          {sortedIssues.length} of {issues.length} issue{issues.length !== 1 ? 's' : ''}
+        </p>
+      </div>
 
-
+      {/* Status filter pills */}
       <div className={styles.filters}>
         {STATUS_FILTERS.map((f) => (
           <button
@@ -209,32 +292,119 @@ export default function ProjectIssuesPage() {
         ))}
       </div>
 
+      {/* Search & assignee filter row */}
+      <div className={styles.searchRow}>
+        <input
+          className={styles.searchInput}
+          type="text"
+          placeholder="Search issues by title…"
+          value={titleSearch}
+          onChange={(e) => setTitleSearch(e.target.value)}
+        />
+        <input
+          className={styles.searchInput}
+          type="text"
+          placeholder="Search by assignee name…"
+          value={assigneeSearch}
+          onChange={(e) => {
+            setAssigneeSearch(e.target.value);
+            setAssigneeFilter('ALL');
+          }}
+        />
+        <select
+          className={styles.assigneeSelect}
+          value={assigneeFilter}
+          onChange={(e) => {
+            setAssigneeFilter(e.target.value);
+            setAssigneeSearch('');
+          }}
+        >
+          <option value="ALL">All assignees</option>
+          <option value="UNASSIGNED">Unassigned</option>
+          {assigneeOptions.map(([id, name]) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
+          ))}
+        </select>
+        {hasActiveFilters && (
+          <button className={styles.clearBtn} onClick={clearFilters}>
+            ✕ Clear
+          </button>
+        )}
+        {(user?.role === 'ADMIN' || user?.role === 'SUPERADMIN') && (
+          <button
+            className={styles.reportBtn}
+            onClick={() => {
+              const params = new URLSearchParams();
+              if (statusFilter !== 'ALL') params.set('status', statusFilter);
+              if (assigneeFilter !== 'ALL') params.set('assigneeId', assigneeFilter);
+              if (assigneeSearch.trim()) params.set('assigneeSearch', assigneeSearch);
+              if (titleSearch.trim()) params.set('title', titleSearch);
+              window.open(`/projects/${projectId}/issues/report?${params.toString()}`, '_blank');
+            }}
+            title="Open printable report in a new tab"
+          >
+            🖨️ Print Report
+          </button>
+        )}
+      </div>
+
       {isLoading && <TableSkeleton />}
       {isError && <div className={styles.stateError}>Failed to load issues.</div>}
 
       {!isLoading && !isError && sortedIssues.length === 0 && (
         <div className={styles.state}>
-          <p>No issues {statusFilter !== 'ALL' ? `with status "${statusFilter}"` : ''}.</p>
-          <button className={styles.inlineCreate} onClick={() => setShowCreate(true)}>Create the first one →</button>
+          <p>{hasActiveFilters ? 'No issues match your filters.' : 'No issues yet.'}</p>
+          {hasActiveFilters ? (
+            <button className={styles.inlineCreate} onClick={clearFilters}>
+              Clear filters
+            </button>
+          ) : (
+            <button className={styles.inlineCreate} onClick={() => setShowCreate(true)}>
+              Create the first one →
+            </button>
+          )}
         </div>
       )}
 
       {!isLoading && sortedIssues.length > 0 && (
         <div className={styles.table}>
           <div className={styles.tableHead}>
-            {renderHeader('Title', 'title')}
-            {renderHeader('Type', 'type')}
-            {renderHeader('Status', 'status')}
-            {renderHeader('Priority', 'priority')}
-            {renderHeader('Deadline', 'deadline')}
-            {renderHeader('SP', 'storyPoints')}
-            {renderHeader('Assignee', 'assignee')}
-            {renderHeader('Reporter', 'reporter')}
-            {renderHeader('Updated', 'updatedAt')}
+            <button className={styles.thBtn} onClick={() => handleSort('title')}>
+              Title <SortIcon col="title" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('type')}>
+              Type <SortIcon col="type" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('status')}>
+              Status <SortIcon col="status" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('priority')}>
+              Priority <SortIcon col="priority" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('deadline')}>
+              Deadline <SortIcon col="deadline" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('storyPoints')}>
+              SP <SortIcon col="storyPoints" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('assignee')}>
+              Assignee <SortIcon col="assignee" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('reporter')}>
+              Reporter <SortIcon col="reporter" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('updatedAt')}>
+              Updated <SortIcon col="updatedAt" />
+            </button>
           </div>
           {sortedIssues.map((issue) => (
-            <IssueRow key={issue.id} issue={issue}
-              onClick={() => router.push(`/projects/${projectId}/issues/${issue.id}`)} />
+            <IssueRow
+              key={issue.id}
+              issue={issue}
+              onClick={() => router.push(`/projects/${projectId}/issues/${issue.id}`)}
+            />
           ))}
         </div>
       )}
@@ -258,7 +428,15 @@ function TableSkeleton() {
   return (
     <div className={styles.table}>
       <div className={styles.tableHead}>
-        <span>Title</span><span>Type</span><span>Status</span><span>Priority</span><span>Deadline</span><span>SP</span><span>Assignee</span><span>Reporter</span><span>Updated</span>
+        <span>Title</span>
+        <span>Type</span>
+        <span>Status</span>
+        <span>Priority</span>
+        <span>Deadline</span>
+        <span>SP</span>
+        <span>Assignee</span>
+        <span>Reporter</span>
+        <span>Updated</span>
       </div>
       {[...Array(5)].map((_, idx) => (
         <div key={idx} className={`${styles.tableRow} ${styles.skeletonRow}`}>
@@ -279,21 +457,40 @@ function TableSkeleton() {
 
 function IssueRow({ issue, onClick }: { issue: Issue; onClick: () => void }) {
   return (
-    <div className={styles.tableRow} onClick={onClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onClick()}>
-      <span className={styles.issueTitle} title={issue.title}>{issue.title}</span>
-      <span><TypeBadge type={issue.type} /></span>
-      <span><StatusBadge status={issue.status} /></span>
-      <span><PriorityBadge priority={issue.priority} /></span>
-      <span><DeadlineBadge deadline={issue.deadline} status={issue.status} /></span>
-      <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>{issue.storyPoints != null ? issue.storyPoints : '—'}</span>
+    <div
+      className={styles.tableRow}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && onClick()}
+    >
+      <span className={styles.issueTitle} title={issue.title}>
+        {issue.title}
+      </span>
+      <span>
+        <TypeBadge type={issue.type} />
+      </span>
+      <span>
+        <StatusBadge status={issue.status} />
+      </span>
+      <span>
+        <PriorityBadge priority={issue.priority} />
+      </span>
+      <span>
+        <DeadlineBadge deadline={issue.deadline} status={issue.status} />
+      </span>
+      <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>
+        {issue.storyPoints != null ? issue.storyPoints : '—'}
+      </span>
       <span className={styles.assignee} title={issue.assignee?.fullName ?? 'Unassigned'}>
-        {issue.assignee?.fullName ?? '—'}
+        {issue.assignee?.fullName ?? <span className={styles.unassigned}>Unassigned</span>}
       </span>
       <span className={styles.reporter} title={issue.reporter?.fullName ?? 'System'}>
         {issue.reporter?.fullName ?? '—'}
       </span>
-      <span className={styles.date}>{formatDistanceToNow(new Date(issue.updatedAt), { addSuffix: true })}</span>
+      <span className={styles.date}>
+        {formatDistanceToNow(new Date(issue.updatedAt), { addSuffix: true })}
+      </span>
     </div>
   );
 }
-
