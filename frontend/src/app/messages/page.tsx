@@ -405,6 +405,7 @@ export default function MessagesPage() {
   const activeGroup = groupId ? (groups.find((g) => g.id === groupId) ?? null) : null;
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [dmMessages, groupMessages]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (dmPartnerId) qc.invalidateQueries({ queryKey: ['dm-conversations'] }); }, [dmMessages.length, dmPartnerId]);
 
   // Auto-resize the compose textarea
