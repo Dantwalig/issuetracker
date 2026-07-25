@@ -8,7 +8,7 @@ import { projectsApi } from '@/lib/projects-api';
 import { checklistsApi } from '@/lib/checklists-api';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { StatusBadge, PriorityBadge, TypeBadge, DeadlineBadge } from '@/components/ui/Badge';
-import { Issue, IssueStatus } from '@/types';
+import { Issue } from '@/types';
 import { format } from 'date-fns';
 import styles from './page.module.css';
 
