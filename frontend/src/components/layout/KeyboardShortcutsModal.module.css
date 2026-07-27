@@ -73,7 +73,7 @@
 
 .closeBtn:hover {
   color: var(--text-primary, #fff);
-  background: rgba(255,255,255,0.08);
+  background: var(--overlay-1);
 }
 
 .body {
@@ -93,7 +93,7 @@
 }
 
 .body::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.1);
+  background: var(--overlay-2);
   border-radius: 2px;
 }
 
@@ -128,7 +128,7 @@
 }
 
 .row:hover {
-  background: rgba(255,255,255,0.04);
+  background: var(--overlay-1);
 }
 
 .description {

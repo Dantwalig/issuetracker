@@ -20,7 +20,7 @@ function TypeBadge({ t }: { t: IssueType }) {
   return <span className={styles.typeBadge}>{map[t]}</span>;
 }
 
-function StatusPill({ status, onChange }: { status: IssueStatus; onChange?: (s: IssueStatus) => void }) {
+function StatusPill({ status, onChange, pending }: { status: IssueStatus; onChange?: (s: IssueStatus) => void; pending?: boolean }) {
   const cfg: Record<IssueStatus, { label: string; cls: string }> = {
     TODO:        { label: 'Todo',        cls: styles.sTodo },
     IN_PROGRESS: { label: 'In Progress', cls: styles.sInProgress },
@@ -32,6 +32,8 @@ function StatusPill({ status, onChange }: { status: IssueStatus; onChange?: (s: 
     <select
       className={`${styles.statusPill} ${styles.statusSelect} ${cls}`}
       value={status}
+      disabled={pending}
+      style={pending ? { opacity: 0.55, cursor: 'wait' } : undefined}
       onChange={(e) => onChange(e.target.value as IssueStatus)}
       onClick={(e) => e.stopPropagation()}
     >
@@ -81,10 +83,12 @@ function IssueRow({
   issue,
   onStatusChange,
   urgent,
+  statusPending,
 }: {
   issue: Issue;
   onStatusChange: (id: string, projectId: string, status: IssueStatus) => void;
   urgent?: boolean;
+  statusPending?: boolean;
 }) {
   const isOverdue = issue.deadline && isPast(new Date(issue.deadline)) && issue.status !== 'DONE';
   const daysLeft = issue.deadline ? differenceInDays(new Date(issue.deadline), new Date()) : null;
@@ -112,6 +116,7 @@ function IssueRow({
       <StatusPill
         status={issue.status}
         onChange={(s) => onStatusChange(issue.id, issue.projectId, s)}
+        pending={statusPending}
       />
       <Link
         href={`/projects/${issue.projectId}/issues/${issue.id}`}
@@ -270,6 +275,7 @@ export default function MyWorkPage() {
                     issue={issue}
                     onStatusChange={handleStatusChange}
                     urgent={overdueIssues.some((o) => o.id === issue.id)}
+                    statusPending={statusMutation.isPending && statusMutation.variables?.issueId === issue.id}
                   />
                 ))
               }

@@ -4,11 +4,13 @@ import { useAuth } from '@/lib/auth-context';
 import { useQuery } from '@tanstack/react-query';
 import { notificationsApi } from '@/lib/notifications-api';
 import { ShortcutsButton } from './ShortcutsButton';
+import { useTheme } from '@/lib/theme-context';
 import styles from './Topbar.module.css';
 
 export function Topbar() {
   const { user } = useAuth();
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
 
   const { data: count = 0 } = useQuery({
     queryKey: ['notifications-unread'],
@@ -21,6 +23,13 @@ export function Topbar() {
     <header className={styles.topbar}>
       <div className={styles.spacer} />
       <div className={styles.actions}>
+        <button
+          className={styles.iconBtn}
+          onClick={toggleTheme}
+          title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+        >
+          {theme === 'light' ? <MoonIcon /> : <SunIcon />}
+        </button>
         <ShortcutsButton />
         <button
           className={styles.iconBtn}
@@ -45,6 +54,25 @@ export function Topbar() {
         </button>
       </div>
     </header>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 18 18" fill="none">
+      <path d="M14.5 10.5A6 6 0 1 1 7.5 3.5a5 5 0 0 0 7 7Z"
+        stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 18 18" fill="none">
+      <circle cx="9" cy="9" r="3.5" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M9 1.5v2M9 14.5v2M16.5 9h-2M3.5 9h-2M14.3 3.7l-1.4 1.4M5.1 12.9l-1.4 1.4M14.3 14.3l-1.4-1.4M5.1 5.1 3.7 3.7"
+        stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
   );
 }
 
