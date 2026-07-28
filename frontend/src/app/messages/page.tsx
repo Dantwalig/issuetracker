@@ -338,13 +338,15 @@ function EditBox({ body, onSave, onCancel }: { body: string; onSave: (v: string)
 
 // ── Bubble ────────────────────────────────────────────────────────────────────
 
-function Bubble({ id, body, isMine, isFirst, isLast, time, editedAt, senderName, senderUser, showTick, isRead, canEdit, isEditing, onEdit, onEditSave, onEditCancel, onDelete }: {
+function Bubble({ id, body, isMine, isFirst, isLast, time, editedAt, senderName, senderUser, showTick, isRead, canEdit, isEditing, onEdit, onEditSave, onEditCancel, onDelete, deleting, sending }: {
   id: string; body: string; isMine: boolean; isFirst: boolean; isLast: boolean; time: string; editedAt?: string | null;
   senderName: string | null; senderUser: DMUser | null; showTick: boolean; isRead: boolean; canEdit: boolean;
   isEditing: boolean; onEdit: () => void; onEditSave: (v: string) => void; onEditCancel: () => void; onDelete: () => void;
+  deleting?: boolean; sending?: boolean;
 }) {
+  const rowBusy = deleting || sending;
   return (
-    <div className={`${styles.msgGroup} ${isMine ? styles.msgGroupMine : styles.msgGroupTheirs}`}>
+    <div className={`${styles.msgGroup} ${isMine ? styles.msgGroupMine : styles.msgGroupTheirs}`} style={deleting ? { opacity: 0.5, pointerEvents: 'none', transition: 'opacity 0.15s' } : undefined}>
       {!isMine && isFirst && senderName && (
         <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 32, marginBottom: 2 }}>{senderName}</span>
       )}
@@ -354,22 +356,24 @@ function Bubble({ id, body, isMine, isFirst, isLast, time, editedAt, senderName,
           {isEditing
             ? <EditBox body={body} onSave={onEditSave} onCancel={onEditCancel} />
             : (
-              <div className={`${styles.bubble} ${isMine ? styles.bubbleMine : styles.bubbleTheirs} ${isFirst ? styles.bubbleFirst : ''}`}>
+              <div className={`${styles.bubble} ${isMine ? styles.bubbleMine : styles.bubbleTheirs} ${isFirst ? styles.bubbleFirst : ''}`} style={sending ? { opacity: 0.65 } : undefined}>
                 <MarkdownRenderer content={body.replace(/\n/g, '  \n')} className={isMine ? styles.markdownMine : styles.markdownTheirs} />
                 {editedAt && <span style={{ fontSize: 10, opacity: 0.6, display: 'block', marginTop: 4, textAlign: isMine ? 'right' : 'left' }}>(edited)</span>}
               </div>
             )}
           {isLast && !isEditing && (
             <div className={styles.msgMeta} style={{ justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
-              <span className={styles.msgTime}>{time}</span>
-              {showTick && <span className={`${styles.msgTick} ${isRead ? styles.msgTickRead : ''}`}>{isRead ? '✓✓' : '✓'}</span>}
+              {sending
+                ? <span className={styles.msgSpinner} title="Sending…" />
+                : <span className={styles.msgTime}>{time}</span>}
+              {showTick && !sending && <span className={`${styles.msgTick} ${isRead ? styles.msgTickRead : ''}`}>{isRead ? '✓✓' : '✓'}</span>}
             </div>
           )}
         </div>
-        {isMine && !isEditing && (
+        {isMine && !isEditing && !sending && (
           <div className={styles.msgRowActions}>
-            {canEdit && <button className={styles.deleteBtn} title="Edit message" onClick={onEdit} style={{ fontSize: 13 }}>✎</button>}
-            <button className={styles.deleteBtn} title="Delete message" onClick={onDelete}>✕</button>
+            {canEdit && <button className={styles.deleteBtn} title="Edit message" aria-label="Edit message" onClick={onEdit} disabled={rowBusy} style={{ fontSize: 13 }}>✎</button>}
+            <button className={styles.deleteBtn} title="Delete message" aria-label="Delete message" onClick={onDelete} disabled={rowBusy}>{deleting ? '…' : '✕'}</button>
           </div>
         )}
       </div>
@@ -420,8 +424,64 @@ export default function MessagesPage() {
   useShortcut('messages:escape', { key: 'Escape', description: 'Close / deselect', group: 'Global', action: () => { if (showPicker) { setShowPicker(false); return; } setActiveChat(null); }, disabled: !showPicker && !activeChat });
   useShortcut('messages:focus', { key: 'r', description: 'Focus reply box', group: 'Messages', action: () => textareaRef.current?.focus(), disabled: !activeChat });
 
-  const sendDM = useMutation({ mutationFn: (b: string) => messagesApi.send(dmPartnerId!, b), onSuccess: () => { qc.invalidateQueries({ queryKey: ['dm-messages', dmPartnerId] }); qc.invalidateQueries({ queryKey: ['dm-conversations'] }); setDraft(''); } });
-  const sendGroup = useMutation({ mutationFn: (b: string) => groupsApi.sendMessage(groupId!, b), onSuccess: () => { qc.invalidateQueries({ queryKey: ['group-messages', groupId] }); qc.invalidateQueries({ queryKey: ['group-chats'] }); setDraft(''); } });
+  const sendDM = useMutation({
+    mutationFn: (b: string) => messagesApi.send(dmPartnerId!, b),
+    onMutate: async (body: string) => {
+      await qc.cancelQueries({ queryKey: ['dm-messages', dmPartnerId] });
+      const previous = qc.getQueryData<DirectMessage[]>(['dm-messages', dmPartnerId]);
+      const optimisticId = `optimistic-${Date.now()}`;
+      const optimistic: DirectMessage = {
+        id: optimisticId,
+        senderId: user!.id,
+        receiverId: dmPartnerId!,
+        body,
+        isRead: false,
+        editedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        sender: { id: user!.id, fullName: user!.fullName, email: user!.email, avatarUrl: (user as any)?.avatarUrl } as DMUser,
+        receiver: (activePartner ?? {}) as DMUser,
+      };
+      qc.setQueryData<DirectMessage[]>(['dm-messages', dmPartnerId], (old = []) => [...old, optimistic]);
+      return { previous, optimisticId };
+    },
+    onError: (_err, body, context) => {
+      if (context?.previous) qc.setQueryData(['dm-messages', dmPartnerId], context.previous);
+      setDraft(body); // restore what they typed so nothing is lost
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['dm-messages', dmPartnerId] });
+      qc.invalidateQueries({ queryKey: ['dm-conversations'] });
+    },
+  });
+  const sendGroup = useMutation({
+    mutationFn: (b: string) => groupsApi.sendMessage(groupId!, b),
+    onMutate: async (body: string) => {
+      await qc.cancelQueries({ queryKey: ['group-messages', groupId] });
+      const previous = qc.getQueryData<GroupMessage[]>(['group-messages', groupId]);
+      const optimisticId = `optimistic-${Date.now()}`;
+      const optimistic: GroupMessage = {
+        id: optimisticId,
+        groupId: groupId!,
+        senderId: user!.id,
+        body,
+        editedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        sender: { id: user!.id, fullName: user!.fullName, email: user!.email, avatarUrl: (user as any)?.avatarUrl } as DMUser,
+      };
+      qc.setQueryData<GroupMessage[]>(['group-messages', groupId], (old = []) => [...old, optimistic]);
+      return { previous, optimisticId };
+    },
+    onError: (_err, body, context) => {
+      if (context?.previous) qc.setQueryData(['group-messages', groupId], context.previous);
+      setDraft(body);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['group-messages', groupId] });
+      qc.invalidateQueries({ queryKey: ['group-chats'] });
+    },
+  });
   const editDM = useMutation({ mutationFn: ({ id, body }: { id: string; body: string }) => messagesApi.edit(id, body), onSuccess: () => { qc.invalidateQueries({ queryKey: ['dm-messages', dmPartnerId] }); setEditingId(null); } });
   const editGroup = useMutation({ mutationFn: ({ id, body }: { id: string; body: string }) => groupsApi.editMessage(id, body), onSuccess: () => { qc.invalidateQueries({ queryKey: ['group-messages', groupId] }); setEditingId(null); } });
   const deleteDM = useMutation({ mutationFn: (id: string) => messagesApi.delete(id), onSuccess: () => { qc.invalidateQueries({ queryKey: ['dm-messages', dmPartnerId] }); qc.invalidateQueries({ queryKey: ['dm-conversations'] }); } });
@@ -434,6 +494,7 @@ export default function MessagesPage() {
   function handleSend() {
     const b = draft.trim();
     if (!b || !activeChat) return;
+    setDraft('');
     if (activeChat.kind === 'dm') sendDM.mutate(b);
     else sendGroup.mutate(b);
   }
@@ -459,7 +520,8 @@ export default function MessagesPage() {
       const isFirst = lastSender !== msg.senderId;
       lastSender = msg.senderId;
       const isLast = idx === msgs.length - 1 || msgs[idx + 1].senderId !== msg.senderId;
-      const canEdit = isMine && differenceInMinutes(new Date(), msgDate) < 15;
+      const isOptimistic = String(msg.id).startsWith('optimistic-');
+      const canEdit = isMine && !isOptimistic && differenceInMinutes(new Date(), msgDate) < 15;
       const senderUser = !isMine ? (isDM ? activePartner : msg.sender) : null;
       nodes.push(
         <Bubble
@@ -472,7 +534,11 @@ export default function MessagesPage() {
           onEdit={() => setEditingId(msg.id)}
           onEditSave={(body) => isDM ? editDM.mutate({ id: msg.id, body }) : editGroup.mutate({ id: msg.id, body })}
           onEditCancel={() => setEditingId(null)}
-          onDelete={() => isDM ? deleteDM.mutate(msg.id) : deleteGroup.mutate(msg.id)}
+          onDelete={() => { if (!isOptimistic) { isDM ? deleteDM.mutate(msg.id) : deleteGroup.mutate(msg.id); } }}
+          sending={isOptimistic}
+          deleting={
+            !isOptimistic && (isDM ? deleteDM.isPending && deleteDM.variables === msg.id : deleteGroup.isPending && deleteGroup.variables === msg.id)
+          }
         />
       );
     });

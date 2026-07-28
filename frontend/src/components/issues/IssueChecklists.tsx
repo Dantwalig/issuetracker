@@ -62,11 +62,31 @@ function ChecklistCard({
 
   const addItem = useMutation({
     mutationFn: (text: string) => checklistsApi.addItem(checklist.id, text),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk });
+    onMutate: async (text: string) => {
+      await qc.cancelQueries({ queryKey: qk });
+      const previous = qc.getQueryData<Checklist[]>(qk);
+      const optimisticItem: ChecklistItem = {
+        id: `optimistic-${Date.now()}`,
+        checklistId: checklist.id,
+        text,
+        isChecked: false,
+        order: checklist.items.length,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      qc.setQueryData<Checklist[]>(qk, (old = []) =>
+        old.map((cl) => (cl.id === checklist.id ? { ...cl, items: [...cl.items, optimisticItem] } : cl)),
+      );
       setNewItemText('');
-      // Keep the add-item form open for rapid entry
       setTimeout(() => addItemInputRef.current?.focus(), 50);
+      return { previous, text };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) qc.setQueryData(qk, context.previous);
+      if (context?.text) setNewItemText(context.text);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: qk });
     },
   });
 
@@ -173,12 +193,16 @@ function ChecklistCard({
           <p className={styles.emptyItems}>No items yet.</p>
         )}
 
-        {checklist.items.map((item) => (
-          <div key={item.id} className={styles.item}>
+        {checklist.items.map((item) => {
+          const isOptimistic = item.id.startsWith('optimistic-');
+          return (
+          <div key={item.id} className={styles.item} style={isOptimistic ? { opacity: 0.55 } : undefined}>
             <input
               type="checkbox"
               className={styles.checkbox}
               checked={item.isChecked}
+              disabled={isOptimistic || (toggleItem.isPending && toggleItem.variables?.id === item.id)}
+              style={toggleItem.isPending && toggleItem.variables?.id === item.id ? { opacity: 0.5, cursor: 'wait' } : undefined}
               onChange={(e) =>
                 toggleItem.mutate({ id: item.id, isChecked: e.target.checked })
               }
@@ -199,13 +223,14 @@ function ChecklistCard({
             ) : (
               <span
                 className={`${styles.itemText} ${item.isChecked ? styles.itemTextDone : ''}`}
-                onDoubleClick={() => startEditItem(item)}
-                title="Double-click to edit"
+                onDoubleClick={() => !isOptimistic && startEditItem(item)}
+                title={isOptimistic ? 'Adding…' : 'Double-click to edit'}
               >
                 {item.text}
               </span>
             )}
 
+            {!isOptimistic && (
             <div className={styles.itemActions}>
               <button
                 className={styles.iconBtn}
@@ -218,13 +243,14 @@ function ChecklistCard({
                 className={`${styles.iconBtn} ${styles.deleteIconBtn}`}
                 title="Delete item"
                 onClick={() => deleteItem.mutate(item.id)}
-                disabled={deleteItem.isPending}
+                disabled={deleteItem.isPending && deleteItem.variables === item.id}
               >
                 ✕
               </button>
             </div>
+            )}
           </div>
-        ))}
+        );})}
       </div>
 
       {/* Add item */}

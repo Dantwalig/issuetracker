@@ -55,15 +55,22 @@ export class GroupChatService {
     if (members.length === 0) return;
 
     const maxRank = Math.max(...members.map((m) => ROLE_RANK[m.user.role] ?? 1));
-
+    const adminIds: string[] = [];
+    const memberIds: string[] = [];
     for (const m of members) {
       const rank = ROLE_RANK[m.user.role] ?? 1;
-      const shouldBeAdmin = rank === maxRank;
-      await this.prisma.groupMember.update({
-        where: { id: m.id },
-        data: { role: shouldBeAdmin ? 'ADMIN' : 'MEMBER' },
-      });
+      (rank === maxRank ? adminIds : memberIds).push(m.id);
     }
+
+    // Batch into two queries instead of one round-trip per member.
+    await Promise.all([
+      adminIds.length
+        ? this.prisma.groupMember.updateMany({ where: { id: { in: adminIds } }, data: { role: 'ADMIN' } })
+        : Promise.resolve(),
+      memberIds.length
+        ? this.prisma.groupMember.updateMany({ where: { id: { in: memberIds } }, data: { role: 'MEMBER' } })
+        : Promise.resolve(),
+    ]);
   }
 
   // ── Group CRUD ───────────────────────────────────────────────────────────

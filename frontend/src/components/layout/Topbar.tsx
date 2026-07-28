@@ -27,6 +27,7 @@ export function Topbar() {
           className={styles.iconBtn}
           onClick={toggleTheme}
           title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
         >
           {theme === 'light' ? <MoonIcon /> : <SunIcon />}
         </button>
@@ -35,6 +36,7 @@ export function Topbar() {
           className={styles.iconBtn}
           onClick={() => router.push('/notifications')}
           title="Notifications"
+          aria-label={count > 0 ? `Notifications, ${count} unread` : 'Notifications'}
         >
           <BellIcon />
           {count > 0 && <span className={styles.badge}>{count > 99 ? '99+' : count}</span>}
@@ -43,6 +45,7 @@ export function Topbar() {
           className={styles.avatarBtn}
           onClick={() => router.push('/profile')}
           title="Profile"
+          aria-label="Open your profile"
         >
           {user?.avatarUrl ? (
             <img src={user.avatarUrl} alt={user.fullName} className={styles.avatarImg} />

@@ -1,7 +1,8 @@
 /* ── Shell ─────────────────────────────────────────────────── */
 .shell {
   display: flex;
-  height: calc(100vh - 56px); /* subtract topbar */
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   gap: 0;
 }
@@ -298,6 +299,16 @@
   padding: 0 4px;
 }
 .msgTime { font-size: 10px; color: var(--text-3); }
+.msgSpinner {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--border-2);
+  border-top-color: var(--text-3);
+  border-radius: 50%;
+  animation: msgSpin 0.6s linear infinite;
+}
+@keyframes msgSpin { to { transform: rotate(360deg); } }
 .msgTick {
   font-size: 11px;
   color: var(--text-3);

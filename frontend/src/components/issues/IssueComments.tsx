@@ -8,7 +8,7 @@ import { canEditComment, canDeleteComment } from '@/lib/permissions';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
-import { IssueUser, CommentAttachment } from '@/types';
+import { IssueUser, CommentAttachment, Comment } from '@/types';
 import styles from './IssueComments.module.css';
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
@@ -187,12 +187,42 @@ export function IssueComments({ issueId, projectMembers = [] }: Props) {
         attachments: pendingFiles,
         mentionedUserIds: mentionedIds,
       }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['comments', issueId] });
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: ['comments', issueId] });
+      const previous = qc.getQueryData<Comment[]>(['comments', issueId]);
+      const snapshot = { body: newBody, files: pendingFiles, mentions: mentionedIds };
+
+      const optimistic: Comment = {
+        id: `optimistic-${Date.now()}`,
+        issueId,
+        authorId: user!.id,
+        body: newBody.trim(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        author: { id: user!.id, fullName: user!.fullName, email: user!.email },
+        attachments: [],
+        mentions: [],
+      };
+      qc.setQueryData<Comment[]>(['comments', issueId], (old = []) => [...old, optimistic]);
+
+      // Clear the composer immediately so it feels instant, not stuck.
       setNewBody('');
       setPendingFiles([]);
       setMentionedIds([]);
       setFileError('');
+
+      return { previous, snapshot };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) qc.setQueryData(['comments', issueId], context.previous);
+      if (context?.snapshot) {
+        setNewBody(context.snapshot.body);
+        setPendingFiles(context.snapshot.files);
+        setMentionedIds(context.snapshot.mentions);
+      }
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['comments', issueId] });
     },
   });
 
@@ -371,13 +401,14 @@ export function IssueComments({ issueId, projectMembers = [] }: Props) {
           )}
 
           {comments.map((comment) => {
-            const canEdit = canEditComment(user, comment);
-            const canDelete = canDeleteComment(user, comment);
+            const isOptimistic = comment.id.startsWith('optimistic-');
+            const canEdit = !isOptimistic && canEditComment(user, comment);
+            const canDelete = !isOptimistic && canDeleteComment(user, comment);
             const isEditing = editingId === comment.id;
             const ini = initials(comment.author.fullName);
 
             return (
-              <div key={comment.id} className={styles.comment}>
+              <div key={comment.id} className={styles.comment} style={isOptimistic ? { opacity: 0.6 } : undefined}>
                 <div className={styles.avatar}>{ini}</div>
                 <div className={styles.body}>
                   <div className={styles.meta}>
@@ -385,10 +416,12 @@ export function IssueComments({ issueId, projectMembers = [] }: Props) {
                       {comment.author.fullName}
                     </span>
                     <span className={styles.timestamp}>
-                      {format(
-                        new Date(comment.createdAt),
-                        'MMM d, yyyy · HH:mm',
-                      )}
+                      {isOptimistic
+                        ? 'Posting…'
+                        : format(
+                            new Date(comment.createdAt),
+                            'MMM d, yyyy · HH:mm',
+                          )}
                       {comment.updatedAt !== comment.createdAt && (
                         <span className={styles.edited}> (edited)</span>
                       )}

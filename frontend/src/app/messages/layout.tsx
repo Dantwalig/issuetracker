@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import styles from '../issues.layout.module.css';
+import flush from './layout.module.css';
 
 export default function MessagesLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -23,7 +24,7 @@ export default function MessagesLayout({ children }: { children: React.ReactNode
       <Sidebar />
       <div className={styles.content}>
         <Topbar />
-        <main className={styles.main}>{children}</main>
+        <main className={`${styles.main} ${flush.mainFlush}`}>{children}</main>
       </div>
     </div>
   );
