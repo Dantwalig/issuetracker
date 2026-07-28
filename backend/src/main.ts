@@ -20,8 +20,13 @@ async function bootstrap() {
     }),
   );
 
+  const envOrigins = (process.env.FRONTEND_URL || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: (process.env.FRONTEND_URL || 'http://localhost:3000').split(',').map(s => s.trim()),
+    origin: ['http://localhost:3000', 'https://trackr.ubwengelab.rw', ...envOrigins],
     credentials: true,
   });
 
