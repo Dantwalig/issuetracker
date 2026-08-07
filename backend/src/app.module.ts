@@ -20,7 +20,6 @@ import { ChecklistsModule } from './checklists/checklists.module';
 import { LabelsModule } from './labels/labels.module';
 import { ActivityModule } from './activity/activity.module';
 import { MyWorkModule } from './my-work/my-work.module';
-import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -45,7 +44,6 @@ import { AnalyticsModule } from './analytics/analytics.module';
     LabelsModule,
     ActivityModule,
     MyWorkModule,
-    AnalyticsModule,
   ],
 })
 export class AppModule {}

@@ -281,15 +281,15 @@ export class RecycleBinService {
     const deleter = await this.prisma.user.findUnique({ where: { id: deletedById }, select: { fullName: true } });
     const deleterName = deleter?.fullName ?? 'An administrator';
     const recipients = creator?.isActive ? [creator] : members.filter((m) => m.isActive && m.id !== deletedById);
-    await this.notifications.createMany(
-      recipients.map((recipient) => ({
+    for (const recipient of recipients) {
+      await this.notifications.create({
         userId: recipient.id,
-        type: 'DELETION_NOTICE' as const,
+        type: 'DELETION_NOTICE',
         title: `${itemType} deleted`,
         message: `${deleterName} deleted ${itemType.toLowerCase()} "${itemName}". Reason: ${reason}`,
         emailContext: { senderName: deleterName },
-      })),
-    );
+      });
+    }
   }
 
   private async _restoreIssue(snap: any) {

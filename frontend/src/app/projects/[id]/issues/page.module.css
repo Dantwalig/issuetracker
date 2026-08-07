@@ -29,26 +29,6 @@
 .clearBtn { padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text-secondary); background: transparent; cursor: pointer; white-space: nowrap; }
 .clearBtn:hover { border-color: var(--accent); color: var(--accent); }
 
-.reportBtn {
-  padding: 7px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
-  color: var(--text-primary);
-  background: var(--bg-3, var(--bg));
-  cursor: pointer;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-  transition: background 0.15s, border-color 0.15s;
-}
-.reportBtn:hover {
-  background: var(--bg-2);
-  border-color: var(--accent);
-}
-
 /* States */
 .state { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px 0; color: var(--text-muted); font-size: 14px; }
 .stateError { padding: 16px; background: rgba(229,83,75,0.08); border: 1px solid rgba(229,83,75,0.2); border-radius: 6px; color: #e5534b; font-size: 14px; }
@@ -58,100 +38,16 @@
 
 /* Table */
 .table { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-
-.tableHead {
-  display: grid;
-  grid-template-columns: minmax(180px, 2.5fr) 75px 95px 75px 105px 40px 105px 105px 105px;
-  gap: 12px;
-  padding: 0 16px;
-  background: var(--bg-2);
-  border-bottom: 1px solid var(--border);
-}
-.thBtn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 10px 0;
-  background: none;
-  border: none;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-2);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.thBtn:hover {
-  color: var(--text-1);
-}
-.sortIcon {
-  font-size: 10px;
-  opacity: 0.4;
-  margin-left: 2px;
-}
-.sortIconActive {
-  font-size: 10px;
-  color: var(--accent);
-  margin-left: 2px;
-}
-.tableRow {
-  display: grid;
-  grid-template-columns: minmax(180px, 2.5fr) 75px 95px 75px 105px 40px 105px 105px 105px;
-  gap: 12px;
-  padding: 13px 16px;
-  border-bottom: 1px solid var(--border);
-  align-items: center;
-  cursor: pointer;
-  transition: background 0.1s;
-}
+.tableHead { display: grid; grid-template-columns: 1fr 90px 110px 90px 130px 40px 130px 110px 110px; gap: 12px; padding: 0 16px; background: var(--bg); border-bottom: 1px solid var(--border); }
+.thBtn { display: flex; align-items: center; gap: 4px; padding: 10px 0; background: none; border: none; font-size: 12px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; white-space: nowrap; }
+.thBtn:hover { color: var(--text-primary); }
+.sortIcon { font-size: 10px; opacity: 0.4; }
+.sortIconActive { font-size: 10px; color: var(--accent); }
+.tableRow { display: grid; grid-template-columns: 1fr 90px 110px 90px 130px 40px 130px 110px 110px; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--border); align-items: center; cursor: pointer; transition: background 0.1s; }
 .tableRow:last-child { border-bottom: none; }
-.tableRow:hover { background: var(--bg-2); }
-.issueTitle { font-size: 14px; font-weight: 500; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.reporter { font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.assignee { font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.unassigned { color: var(--text-3); font-style: italic; }
-.date { font-size: 12px; color: var(--text-3); }
-
-/* Skeleton loader styles */
-.skeletonRow {
-  cursor: default !important;
-}
-.skeletonRow:hover {
-  background: none !important;
-}
-.skeletonLine {
-  height: 14px;
-  background: var(--bg-3);
-  border-radius: 4px;
-  position: relative;
-  overflow: hidden;
-}
-.skeletonBadge {
-  height: 22px;
-  background: var(--bg-3);
-  border-radius: 12px;
-  position: relative;
-  overflow: hidden;
-  width: 70px;
-}
-.skeletonLine::after,
-.skeletonBadge::after {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.05) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  animation: shimmer 1.5s infinite;
-  transform: translateX(-100%);
-}
-@keyframes shimmer {
-  100% {
-    transform: translateX(100%);
-  }
-}
+.tableRow:hover { background: var(--bg); }
+.issueTitle { font-size: 14px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reporter { font-size: 13px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.assignee { font-size: 13px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.unassigned { color: var(--text-muted); font-style: italic; }
+.date { font-size: 12px; color: var(--text-muted); }

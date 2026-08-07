@@ -10,26 +10,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/lib/auth-context';
 import styles from './page.module.css';
 
-function SkeletonTeams() {
-  return (
-    <div className={styles.grid}>
-      {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div key={i} className={styles.card} style={{ pointerEvents: 'none' }}>
-          <div className={styles.cardHeader}>
-            <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--bg-3)' }} />
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ width: 120, height: 16, borderRadius: 4, background: 'var(--bg-3)' }} />
-              <div style={{ width: 80, height: 12, borderRadius: 4, background: 'var(--bg-3)' }} />
-            </div>
-          </div>
-          <div style={{ width: '100%', height: 12, borderRadius: 4, background: 'var(--bg-2)', marginTop: 12 }} />
-          <div style={{ width: '70%', height: 12, borderRadius: 4, background: 'var(--bg-2)', marginTop: 8 }} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function TeamsPage() {
   const router = useRouter();
   const qc = useQueryClient();
@@ -47,29 +27,6 @@ export default function TeamsPage() {
 
   const createMutation = useMutation({
     mutationFn: (data: CreateTeamPayload) => teamsApi.create(data),
-    onMutate: async (newTeam) => {
-      await qc.cancelQueries({ queryKey: ['teams'] });
-      const previousTeams = qc.getQueryData<Team[]>(['teams']);
-      if (previousTeams) {
-        qc.setQueryData<Team[]>(['teams'], [
-          ...previousTeams,
-          {
-            id: 'temp-' + Date.now(),
-            name: newTeam.name,
-            description: newTeam.description || '',
-            members: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          } as unknown as Team,
-        ]);
-      }
-      return { previousTeams };
-    },
-    onError: (err, newTeam, context) => {
-      if (context?.previousTeams) {
-        qc.setQueryData(['teams'], context.previousTeams);
-      }
-    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['teams'] });
       setShowCreate(false);
@@ -106,7 +63,9 @@ export default function TeamsPage() {
         )}
       </div>
 
-      {isLoading && <SkeletonTeams />}
+      {isLoading && (
+        <div className={styles.state}><span className={styles.spinner} /><span>Loading…</span></div>
+      )}
 
       {!isLoading && teams.length === 0 && (
         <div className={styles.state}><p>No teams yet.</p></div>

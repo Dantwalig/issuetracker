@@ -405,7 +405,6 @@ export default function MessagesPage() {
   const activeGroup = groupId ? (groups.find((g) => g.id === groupId) ?? null) : null;
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [dmMessages, groupMessages]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (dmPartnerId) qc.invalidateQueries({ queryKey: ['dm-conversations'] }); }, [dmMessages.length, dmPartnerId]);
 
   // Auto-resize the compose textarea
@@ -580,7 +579,7 @@ export default function MessagesPage() {
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                     {activeGroup?.members.slice(0, 5).map((m, i) => (
                       <div key={m.id} title={`${m.user.fullName}${m.role === 'ADMIN' ? ' (Admin)' : ''}`} style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--bg-3)', border: `2px solid ${m.role === 'ADMIN' ? 'var(--accent)' : 'var(--bg-2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: 'var(--text-2)', overflow: 'hidden', marginLeft: i > 0 ? -8 : 0, zIndex: i }}>
-                        {m.user.avatarUrl ? <img src={m.user.avatarUrl} alt={m.user.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(m.user.fullName)}
+                        {m.user.avatarUrl ? <img src={m.user.avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(m.user.fullName)}
                       </div>
                     ))}
                     {activeGroup && activeGroup.members.length > 5 && <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 4 }}>+{activeGroup.members.length - 5}</span>}

@@ -39,10 +39,3 @@ coverage/
 # ────────────── Temporary ──────────────
 tmp/
 temp/
-
-# ────────────── Lighthouse / perf artifacts ──────────────
-frontend/lighthouse-out/
-frontend/lighthouse-report*.html
-
-# ────────────── Ad-hoc verification scripts (hermes-verify-*) ──────────────
-hermes-verify-*

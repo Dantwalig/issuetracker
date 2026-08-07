@@ -7,7 +7,6 @@ import { boardApi, BoardColumns } from '@/lib/board-api';
 import { projectsApi } from '@/lib/projects-api';
 import { useAuth } from '@/lib/auth-context';
 import { canUpdateIssueStatus } from '@/lib/permissions';
-import { useHeader } from '@/lib/header-context';
 import { Issue, IssueStatus, Project } from '@/types';
 import { PriorityBadge, TypeBadge, DeadlineBadge } from '@/components/ui/Badge';
 import { formatDistanceToNow } from 'date-fns';
@@ -25,7 +24,6 @@ export default function BoardPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const { setBreadcrumbs } = useHeader();
 
   // dragError is shown when a user tries to move a card they don't have permission to update
   const [dragError, setDragError] = useState<string | null>(null);
@@ -54,17 +52,6 @@ export default function BoardPage() {
     queryKey: ['board', projectId],
     queryFn: () => boardApi.getBoard(projectId),
   });
-
-  const projectName = project?.name ?? '…';
-
-  useEffect(() => {
-    setBreadcrumbs([
-      { label: 'Projects', href: '/projects' },
-      { label: projectName, href: `/projects/${projectId}` },
-      { label: 'Board' },
-    ]);
-    return () => setBreadcrumbs([]);
-  }, [setBreadcrumbs, projectId, projectName]);
 
   // Optimistic columns — mirrors server state locally during drag
   const [optimisticColumns, setOptimisticColumns] = useState<BoardColumns | null>(null);
@@ -176,7 +163,7 @@ export default function BoardPage() {
       statusMutation.mutate({ issueId: drag.issue.id, status: toStatus });
       dragIssueRef.current = null;
     },
-    [board, statusMutation, user, project],
+    [board, statusMutation, user],
   );
 
   const handleDragEnd = useCallback(() => {
@@ -189,12 +176,10 @@ export default function BoardPage() {
   if (isLoading) {
     return (
       <div className={styles.page}>
-        <div className={styles.header}>
-          <div className={styles.titleRow}>
-            <div className={styles.skeletonLine} style={{ width: '150px', height: '20px' }} />
-          </div>
+        <div className={styles.state}>
+          <span className={styles.spinner} />
+          <span>Loading board…</span>
         </div>
-        <BoardSkeleton />
       </div>
     );
   }
@@ -210,6 +195,19 @@ export default function BoardPage() {
   if (!board?.sprint) {
     return (
       <div className={styles.page}>
+        <div className={styles.header}>
+          <div className={styles.breadcrumb}>
+            <button className={styles.breadLink} onClick={() => router.push('/projects')}>
+              Projects
+            </button>
+            <span className={styles.sep}>/</span>
+            <button className={styles.breadLink} onClick={() => router.push(`/projects/${projectId}`)}>
+              {project?.name ?? '…'}
+            </button>
+            <span className={styles.sep}>/</span>
+            <span className={styles.breadCurrent}>Board</span>
+          </div>
+        </div>
         <div className={styles.empty}>
           <div className={styles.emptyIcon}>
             <BoardIcon />
@@ -234,6 +232,20 @@ export default function BoardPage() {
 
   return (
     <div className={styles.page}>
+      <div className={styles.header}>
+        <div className={styles.breadcrumb}>
+          <button className={styles.breadLink} onClick={() => router.push('/projects')}>
+            Projects
+          </button>
+          <span className={styles.sep}>/</span>
+          <button className={styles.breadLink} onClick={() => router.push(`/projects/${projectId}`)}>
+            {project?.name ?? '…'}
+          </button>
+          <span className={styles.sep}>/</span>
+          <span className={styles.breadCurrent}>Board</span>
+        </div>
+      </div>
+
       <div className={styles.titleRow}>
         <h1 className={styles.heading}>{board.sprint.name}</h1>
         <span className={styles.sprintMeta}>
@@ -430,34 +442,3 @@ function BoardIcon() {
     </svg>
   );
 }
-
-function BoardSkeleton() {
-  return (
-    <div className={styles.board}>
-      {COLUMNS.map(({ key, label }) => (
-        <div key={key} className={styles.column}>
-          <div className={styles.columnHeader}>
-            <div className={styles.columnTitle}>
-              <span className={`${styles.columnDot} ${styles[`dot${key}`]}`} />
-              <span>{label}</span>
-            </div>
-            <span className={styles.skeletonCount} />
-          </div>
-          <div className={styles.cardList}>
-            {[...Array(2)].map((_, idx) => (
-              <div key={idx} className={`${styles.card} ${styles.skeletonCard}`} style={{ padding: 14 }}>
-                <div className={styles.skeletonLine} style={{ width: '40%', marginBottom: '12px' }} />
-                <div className={styles.skeletonLine} style={{ width: '85%', marginBottom: '16px', height: '14px' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div className={styles.skeletonBadge} style={{ width: '50px' }} />
-                  <div className={styles.skeletonBadge} style={{ width: '40px' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-

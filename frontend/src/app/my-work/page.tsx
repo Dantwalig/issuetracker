@@ -171,31 +171,6 @@ function SprintCard({ sprint }: { sprint: MyWorkSprint }) {
   );
 }
 
-function SkeletonDashboard() {
-  return (
-    <div className={styles.loadingWrap}>
-      <div className={styles.sectionHeader}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-3)' }} />
-        <div style={{ width: 120, height: 24, borderRadius: 4, background: 'var(--bg-3)' }} />
-      </div>
-      <div style={{ display: 'flex', gap: 16, marginBottom: 32 }}>
-        {[1, 2, 3, 4, 5].map(i => (
-          <div key={i} style={{ width: 150, height: 80, borderRadius: 8, background: 'var(--bg-2)' }} />
-        ))}
-      </div>
-      <div className={styles.sectionHeader}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-3)' }} />
-        <div style={{ width: 160, height: 24, borderRadius: 4, background: 'var(--bg-3)' }} />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {[1, 2, 3, 4].map(i => (
-          <div key={i} style={{ width: '100%', height: 48, borderRadius: 6, background: 'var(--bg-2)' }} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Page ───────────────────────────────────────────────────────────────────
 export default function MyWorkPage() {
   const { user } = useAuth();
@@ -211,28 +186,7 @@ export default function MyWorkPage() {
   const statusMutation = useMutation({
     mutationFn: ({ projectId, issueId, status }: { projectId: string; issueId: string; status: IssueStatus }) =>
       myWorkApi.updateIssueStatus(projectId, issueId, status),
-    onMutate: async ({ issueId, status }) => {
-      await qc.cancelQueries({ queryKey: ['my-work'] });
-      const previousData = qc.getQueryData<any>(['my-work']);
-      if (previousData) {
-        qc.setQueryData(['my-work'], {
-          ...previousData,
-          assignedIssues: previousData.assignedIssues.map((issue: any) =>
-            issue.id === issueId ? { ...issue, status } : issue
-          ),
-          reportedIssues: previousData.reportedIssues.map((issue: any) =>
-            issue.id === issueId ? { ...issue, status } : issue
-          ),
-        });
-      }
-      return { previousData };
-    },
-    onError: (err, newTodo, context) => {
-      if (context?.previousData) {
-        qc.setQueryData(['my-work'], context.previousData);
-      }
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['my-work'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['my-work'] }),
   });
 
   const handleStatusChange = (issueId: string, projectId: string, status: IssueStatus) => {
@@ -240,7 +194,11 @@ export default function MyWorkPage() {
   };
 
   if (isLoading) {
-    return <SkeletonDashboard />;
+    return (
+      <div className={styles.loadingWrap}>
+        <span className={styles.spinner} />
+      </div>
+    );
   }
 
   if (!data) return null;
