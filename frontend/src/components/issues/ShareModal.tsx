@@ -1,10 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { toPng } from 'html-to-image';
 import { shareApi } from '@/lib/share-api';
 import { Issue } from '@/types';
-import { ExportCard } from './ExportCard';
 import styles from './ShareModal.module.css';
 
 interface Props {
@@ -62,30 +60,213 @@ export function ShareModal({ issue, onClose, onTokenChange }: Props) {
   }
 
   // ── Image export ────────────────────────────────────────────────────────
+  // We render a hidden summary card in the DOM then use the Canvas API to
+  // draw it as a PNG — no external library needed.
 
   async function handleExport() {
-    if (!cardRef.current) return;
-    
     setExporting(true);
     try {
-      const dataUrl = await toPng(cardRef.current, {
-        cacheBust: true,
-        pixelRatio: 2, // High resolution
-        skipFonts: false,
-      });
-      
+      const canvas = document.createElement('canvas');
+      const W = 800;
+      const PADDING = 40;
+      const LINE = 22;
+      const ctx = canvas.getContext('2d')!;
+
+      // ── Helpers ─────────────────────────────────────────────────────────
+      const wrapText = (
+        text: string,
+        maxWidth: number,
+        fontSize: number,
+        bold = false,
+      ): string[] => {
+        ctx.font = `${bold ? '600' : '400'} ${fontSize}px "DM Sans", system-ui, sans-serif`;
+        const words = text.split(' ');
+        const lines: string[] = [];
+        let line = '';
+        for (const word of words) {
+          const test = line ? `${line} ${word}` : word;
+          if (ctx.measureText(test).width > maxWidth && line) {
+            lines.push(line);
+            line = word;
+          } else {
+            line = test;
+          }
+        }
+        if (line) lines.push(line);
+        return lines;
+      };
+
+      const badge = (
+        ctx: CanvasRenderingContext2D,
+        text: string,
+        x: number,
+        y: number,
+        bg: string,
+        fg: string,
+      ) => {
+        ctx.font = '500 12px "DM Sans", system-ui, sans-serif';
+        const tw = ctx.measureText(text).width;
+        const bw = tw + 16;
+        const bh = 22;
+        ctx.fillStyle = bg;
+        ctx.beginPath();
+        ctx.roundRect(x, y - 15, bw, bh, 4);
+        ctx.fill();
+        ctx.fillStyle = fg;
+        ctx.fillText(text, x + 8, y);
+        return bw + 8;
+      };
+
+      // ── Measure content height ───────────────────────────────────────────
+      const titleLines = wrapText(
+        issue.title,
+        W - PADDING * 2,
+        22,
+        true,
+      );
+      const descLines = issue.description
+        ? wrapText(issue.description, W - PADDING * 2, 13)
+        : [];
+
+      const H =
+        PADDING + // top pad
+        32 + // project name row
+        16 + // gap
+        titleLines.length * 28 + // title
+        16 + // gap
+        30 + // badge row
+        (descLines.length ? 20 + descLines.length * LINE + 16 : 0) + // description
+        80 + // meta grid (2 rows × 40)
+        PADDING; // bottom pad
+
+      canvas.width = W;
+      canvas.height = H;
+      ctx.clearRect(0, 0, W, H);
+
+      // ── Background ──────────────────────────────────────────────────────
+      ctx.fillStyle = '#161b27';
+      ctx.beginPath();
+      ctx.roundRect(0, 0, W, H, 12);
+      ctx.fill();
+
+      // ── Border ──────────────────────────────────────────────────────────
+      ctx.strokeStyle = '#2a3044';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(0.5, 0.5, W - 1, H - 1, 12);
+      ctx.stroke();
+
+      let y = PADDING;
+
+      // ── Project name ─────────────────────────────────────────────────────
+      ctx.font = '500 13px "DM Sans", system-ui, sans-serif';
+      ctx.fillStyle = '#5a6480';
+      ctx.fillText(issue.project?.name ?? 'Trackr', PADDING, y + 14);
+      y += 32;
+
+      // ── Title ────────────────────────────────────────────────────────────
+      ctx.font = '600 22px "DM Sans", system-ui, sans-serif';
+      ctx.fillStyle = '#e8edf5';
+      for (const line of titleLines) {
+        ctx.fillText(line, PADDING, y + 22);
+        y += 28;
+      }
+      y += 16;
+
+      // ── Badges ───────────────────────────────────────────────────────────
+      const statusColors: Record<string, [string, string]> = {
+        TODO: ['#1e2535', '#8a95aa'],
+        IN_PROGRESS: ['#0f1e45', '#4f7ef8'],
+        DONE: ['#0d2e1c', '#34c97e'],
+      };
+      const priorityColors: Record<string, [string, string]> = {
+        LOW: ['#1e2535', '#5a6480'],
+        MEDIUM: ['#2e2008', '#f5b223'],
+        HIGH: ['#2e0e0e', '#f05252'],
+      };
+      const typeColors: Record<string, [string, string]> = {
+        TASK: ['#1a2e5a', '#4f7ef8'],
+        BUG: ['#2e0e0e', '#f05252'],
+        STORY: ['#1e1040', '#9b7cf8'],
+      };
+
+      let bx = PADDING;
+      const [tbg, tfg] = typeColors[issue.type] ?? ['#1e2535', '#8a95aa'];
+      bx += badge(ctx, issue.type, bx, y + 15, tbg, tfg);
+      const [sbg, sfg] = statusColors[issue.status] ?? ['#1e2535', '#8a95aa'];
+      bx += badge(
+        ctx,
+        issue.status.replace('_', ' '),
+        bx,
+        y + 15,
+        sbg,
+        sfg,
+      );
+      const [pbg, pfg] = priorityColors[issue.priority] ?? ['#1e2535', '#8a95aa'];
+      badge(ctx, issue.priority, bx, y + 15, pbg, pfg);
+      y += 30;
+
+      // ── Description ───────────────────────────────────────────────────────
+      if (descLines.length) {
+        y += 20;
+        ctx.font = '400 13px "DM Sans", system-ui, sans-serif';
+        ctx.fillStyle = '#8a95aa';
+        for (const line of descLines) {
+          ctx.fillText(line, PADDING, y + 14);
+          y += LINE;
+        }
+        y += 16;
+      }
+
+      // ── Separator ─────────────────────────────────────────────────────────
+      ctx.strokeStyle = '#2a3044';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(PADDING, y);
+      ctx.lineTo(W - PADDING, y);
+      ctx.stroke();
+      y += 20;
+
+      // ── Meta grid ─────────────────────────────────────────────────────────
+      const meta: [string, string][] = [
+        ['Reporter', issue.reporter?.fullName ?? '—'],
+        ['Assignee', issue.assignee?.fullName ?? 'Unassigned'],
+        ['Story Points', issue.storyPoints != null ? String(issue.storyPoints) : '—'],
+        ['Deadline', issue.deadline ? new Date(issue.deadline).toLocaleDateString() : '—'],
+      ];
+
+      const colW = (W - PADDING * 2) / 2;
+      for (let i = 0; i < meta.length; i++) {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const mx = PADDING + col * colW;
+        const my = y + row * 40;
+
+        ctx.font = '500 11px "DM Sans", system-ui, sans-serif';
+        ctx.fillStyle = '#5a6480';
+        ctx.fillText(meta[i][0].toUpperCase(), mx, my + 12);
+
+        ctx.font = '400 14px "DM Sans", system-ui, sans-serif';
+        ctx.fillStyle = '#e8edf5';
+        ctx.fillText(meta[i][1], mx, my + 28);
+      }
+
+      // ── Watermark ─────────────────────────────────────────────────────────
+      ctx.font = '400 11px "DM Sans", system-ui, sans-serif';
+      ctx.fillStyle = '#3a4460';
+      ctx.textAlign = 'right';
+      ctx.fillText('Trackr', W - PADDING, H - 14);
+      ctx.textAlign = 'left';
+
+      // ── Download ─────────────────────────────────────────────────────────
       const slug = issue.title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .slice(0, 40);
-        
       const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
       link.download = `trackr-${slug}.png`;
-      link.href = dataUrl;
       link.click();
-    } catch (err) {
-      console.error('Failed to export image', err);
-      alert('Failed to export image. Please try again.');
     } finally {
       setExporting(false);
     }
@@ -168,8 +349,8 @@ export function ShareModal({ issue, onClose, onTokenChange }: Props) {
         </div>
       </div>
 
-      {/* Off-screen card used by html-to-image */}
-      <ExportCard ref={cardRef} issue={issue} />
+      {/* Hidden card ref for future use */}
+      <div ref={cardRef} style={{ display: 'none' }} />
     </div>
   );
 }

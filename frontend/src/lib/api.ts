@@ -34,22 +34,6 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config;
 
-    // Render free tier sleeps after ~15 min idle. The first request after a
-    // sleep hits a cold start; if the wake-up is slow the connection drops
-    // and axios reports "Network Error" (the browser may even surface it as
-    // a CORS-looking failure since no response headers arrive). Retry ONCE
-    // for safe (GET) requests so users don't see spurious failures during
-    // the wake-up window.
-    if (
-      !error.response &&
-      !original._networkRetry &&
-      (original.method || '').toUpperCase() === 'GET'
-    ) {
-      original._networkRetry = true;
-      await new Promise((r) => setTimeout(r, 1500));
-      return api(original);
-    }
-
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
       const refreshToken = localStorage.getItem('refreshToken');

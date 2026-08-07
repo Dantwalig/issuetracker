@@ -45,7 +45,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.push('/login');
       })
       .finally(() => setLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Listen for the soft-logout event dispatched by the axios interceptor.

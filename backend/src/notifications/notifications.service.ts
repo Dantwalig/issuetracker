@@ -43,11 +43,7 @@ export class NotificationsService {
 
   async createMany(payloads: CreateNotificationPayload[]) {
     if (payloads.length === 0) return;
-    // emailContext (and any other email-only fields) are NOT database columns —
-    // strip them before the insert; sendEmail below consumes the full payload.
-    const result = await this.prisma.notification.createMany({
-      data: payloads.map(({ emailContext, ...dbFields }) => dbFields),
-    });
+    const result = await this.prisma.notification.createMany({ data: payloads });
     void Promise.all(payloads.map((p) => this.sendEmail(p)));
     return result;
   }

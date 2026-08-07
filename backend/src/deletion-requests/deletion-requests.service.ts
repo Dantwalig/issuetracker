@@ -41,11 +41,11 @@ export class DeletionRequestsService {
     });
     const requester = await this.prisma.user.findUnique({ where: { id: requestedById }, select: { fullName: true } });
 
-    // notifications.createMany already sends the rich email — no manual email.send() needed
-    await this.notifications.createMany(
-      admins.map((admin) => ({
+    // notifications.create already sends the rich email — no manual email.send() needed
+    for (const admin of admins) {
+      await this.notifications.create({
         userId: admin.id,
-        type: 'DELETION_REQUEST' as const,
+        type: 'DELETION_REQUEST',
         title: 'Issue deletion requested',
         message: `${requester?.fullName} requested deletion of issue "${issue.title}". Reason: ${reason}`,
         issueId,
@@ -54,8 +54,8 @@ export class DeletionRequestsService {
           issueTitle: issue.title,
           projectName: issue.project.name,
         },
-      })),
-    );
+      });
+    }
 
     return request;
   }

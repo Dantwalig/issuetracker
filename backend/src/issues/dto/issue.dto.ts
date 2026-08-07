@@ -1,11 +1,7 @@
-import { IsString, IsOptional, IsEnum, IsInt, IsDateString, MinLength, MaxLength, Min, Max, IsIn, ValidateIf } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsInt, IsDateString, MinLength, MaxLength, Min, ValidateIf } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { IssueType, IssueStatus, IssuePriority } from '@prisma/client';
 import { OmitType } from '@nestjs/mapped-types';
-
-/** Team-agreed estimation scale — planning guardrail (Sprint A, Task 6). */
-export const STORY_POINT_SCALE = [1, 2, 3, 5, 8, 13] as const;
-export type StoryPoint = (typeof STORY_POINT_SCALE)[number];
 
 export class CreateIssueDto {
   @IsString() @MinLength(3) @MaxLength(255)
@@ -25,7 +21,7 @@ export class CreateIssueDto {
 
   @IsOptional()
   @Transform(({ value }) => (value === '' || value === undefined || value === null ? undefined : Number(value)))
-  @IsIn(STORY_POINT_SCALE, { message: 'storyPoints must be one of 1, 2, 3, 5, 8, 13' })
+  @IsInt() @Min(1)
   storyPoints?: number;
 
   @IsOptional() @IsDateString()
@@ -52,13 +48,10 @@ export class UpdateIssueDto extends OmitType(CreateIssueDto, ['projectId', 'titl
   @IsDateString()
   deadline?: string | null;
 
-  /** null clears story points; a number sets them; undefined leaves unchanged.
-   *  UPDATE is intentionally permissive (any positive int ≤ 100): prod already
-   *  holds legacy non-Fibonacci values (10, 9, 4, 6, 12, 14, 18…) that must
-   *  stay editable. CREATE enforces the Fibonacci scale via CreateIssueDto. */
+  /** null clears story points; a number sets them; undefined leaves unchanged */
   @IsOptional()
   @ValidateIf((_obj, value) => value !== null)
   @Transform(({ value }) => (value === '' || value === undefined ? undefined : value === null ? null : Number(value)))
-  @IsInt() @Min(1) @Max(100)
+  @IsInt() @Min(1)
   storyPoints?: number | null;
 }

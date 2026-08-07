@@ -7,11 +7,9 @@ import { backlogApi } from '@/lib/backlog-api';
 import { sprintsApi } from '@/lib/sprints-api';
 import { issuesApi } from '@/lib/issues-api';
 import { projectsApi } from '@/lib/projects-api';
-import { checklistsApi } from '@/lib/checklists-api';
 import { useAuth } from '@/lib/auth-context';
-import { useHeader } from '@/lib/header-context';
 import { canManageSprints } from '@/lib/permissions';
-import { Issue, Sprint, IssueUser } from '@/types';
+import { Issue } from '@/types';
 import { StatusBadge, PriorityBadge, TypeBadge, DeadlineBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { IssueForm } from '@/components/issues/IssueForm';
@@ -23,8 +21,6 @@ export default function BacklogPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const { setBreadcrumbs, setActions } = useHeader();
-  const [pendingSprintIssueId, setPendingSprintIssueId] = useState<string | null>(null);
   const isManager = canManageSprints(user);
 
   const [showCreate, setShowCreate] = useState(false);
@@ -38,7 +34,7 @@ export default function BacklogPage() {
   // Keep ref in sync so dragEnd can read the latest order without depending on state
   useEffect(() => { pendingOrderRef.current = localOrder; }, [localOrder]);
 
-  const { data: project, isLoading: isProjectLoading } = useQuery({
+  const { data: project } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => projectsApi.get(projectId),
   });
@@ -55,29 +51,7 @@ export default function BacklogPage() {
   });
   const activeSprint = sprints.find((s) => s.status === 'ACTIVE') ?? null;
 
-  const projectName = project?.name ?? '…';
-
-  useEffect(() => {
-    setBreadcrumbs([
-      { label: 'Projects', href: '/projects' },
-      { label: projectName, href: `/projects/${projectId}` },
-      { label: 'Backlog' },
-    ]);
-    setActions(
-      <button className={styles.createBtn} onClick={() => setShowCreate(true)}>
-        <span>+</span> New issue
-      </button>
-    );
-    return () => {
-      setBreadcrumbs([]);
-      setActions(null);
-    };
-  }, [setBreadcrumbs, setActions, projectId, projectName]);
-
   const issues = localOrder ?? backlog;
-
-  // Optimistic trick: immediately filter out the issue being moved
-  const displayedIssues = issues.filter((i) => i.id !== pendingSprintIssueId);
 
   const reorderMutation = useMutation({
     mutationFn: (orderedIds: string[]) => backlogApi.reorder(projectId, orderedIds),
@@ -101,37 +75,19 @@ export default function BacklogPage() {
   });
 
   const addToSprintMutation = useMutation({
-    mutationFn: ({ issueId, sprintId }: { issueId: string; sprintId: string }) => {
-      setPendingSprintIssueId(issueId);
-      return sprintsApi.addIssue(projectId, sprintId, issueId);
-    },
+    mutationFn: ({ issueId, sprintId }: { issueId: string; sprintId: string }) =>
+      sprintsApi.addIssue(projectId, sprintId, issueId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['backlog', projectId] });
       qc.invalidateQueries({ queryKey: ['sprints', projectId] });
       qc.invalidateQueries({ queryKey: ['sprintIssues', activeSprint?.id ?? ''] });
-      setPendingSprintIssueId(null);
-    },
-    onError: () => {
-      setPendingSprintIssueId(null);
     },
   });
 
-  async function handleCreate(data: any, checklists?: any[]) {
+  async function handleCreate(data: any) {
     setCreating(true);
-    try {
-      const created = await createMutation.mutateAsync(data);
-      if (checklists && checklists.length > 0) {
-        for (const list of checklists) {
-          const createdList = await checklistsApi.create(created.id, list.title);
-          for (const item of list.items) {
-            await checklistsApi.addItem(createdList.id, item);
-          }
-        }
-      }
-      qc.invalidateQueries({ queryKey: ['backlog', projectId] });
-    } finally {
-      setCreating(false);
-    }
+    try { await createMutation.mutateAsync(data); }
+    finally { setCreating(false); }
   }
 
   // ── Drag handlers ──────────────────────────────────────────────────────────
@@ -169,22 +125,25 @@ export default function BacklogPage() {
     }
   }, [reorderMutation]);
 
-  const projectMembers: IssueUser[] = (project?.members ?? []).map((m) => m.user);
-
-  if (isLoading) {
-    return (
-      <div className={styles.page}>
-        <div className={styles.titleRow} style={{ marginBottom: '16px' }}>
-          <div className={styles.skeletonLine} style={{ width: '120px', height: '20px' }} />
-        </div>
-        <BacklogSkeleton />
-      </div>
-    );
-  }
-
   return (
     <div className={styles.page}>
-      <div className={styles.titleRow} style={{ marginBottom: '16px' }}>
+      <div className={styles.header}>
+        <div className={styles.breadcrumb}>
+          <button className={styles.breadLink} onClick={() => router.push('/projects')}>Projects</button>
+          <span className={styles.sep}>/</span>
+          <button className={styles.breadLink} onClick={() => router.push(`/projects/${projectId}`)}>
+            {project?.name ?? '…'}
+          </button>
+          <span className={styles.sep}>/</span>
+          <span className={styles.breadCurrent}>Backlog</span>
+        </div>
+        <button className={styles.createBtn} onClick={() => setShowCreate(true)}>
+          + New issue
+        </button>
+      </div>
+
+      <div className={styles.titleRow}>
+        <h1 className={styles.heading}>Backlog</h1>
         <p className={styles.sub}>
           {issues.length} issue{issues.length !== 1 ? 's' : ''}
           {issues.some(i => i.storyPoints != null) && (
@@ -199,41 +158,45 @@ export default function BacklogPage() {
         )}
       </div>
 
+      {isLoading && (
+        <div className={styles.state}>
+          <span className={styles.spinner} /><span>Loading backlog…</span>
+        </div>
+      )}
       {isError && <div className={styles.stateError}>Failed to load backlog.</div>}
 
-      {!isError && displayedIssues.length === 0 && (
+      {!isLoading && !isError && issues.length === 0 && (
         <div className={styles.empty}>
           <div className={styles.emptyIcon}><BacklogIcon /></div>
-          <p className={styles.emptyTitle}>Your backlog is empty</p>
-          <p className={styles.emptyHint}>Create issues to see them listed here, then drag to rank them.</p>
+          <p className={styles.emptyTitle}>Backlog is empty</p>
+          <p className={styles.emptyHint}>Issues without a sprint appear here.</p>
+          <button className={styles.createBtn} onClick={() => setShowCreate(true)}>+ New issue</button>
         </div>
       )}
 
-      {!isError && displayedIssues.length > 0 && (
+      {!isLoading && issues.length > 0 && (
         <div className={styles.list}>
           <div className={styles.listHead}>
             <span />
-            <span className={styles.colOrder}>Rank</span>
+            <span className={styles.colOrder}>#</span>
             <span>Title</span>
-            <span>Deadline</span>
-            <span>SP</span>
             <span>Type</span>
             <span>Priority</span>
             <span>Status</span>
             <span>Reporter</span>
             <span>Assignee</span>
             <span>Updated</span>
-            {activeSprint && isManager && <span />}
+            {activeSprint && isManager && <span>Sprint</span>}
           </div>
 
-          {displayedIssues.map((issue, index) => (
+          {issues.map((issue, index) => (
             <BacklogRow
               key={issue.id}
               issue={issue}
               index={index}
               isDragOver={dragOverIndex === index}
               activeSprint={activeSprint}
-              addingToSprint={pendingSprintIssueId === issue.id}
+              addingToSprint={addToSprintMutation.isPending}
               onDragStart={handleDragStart}
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
@@ -250,7 +213,6 @@ export default function BacklogPage() {
       {showCreate && (
         <Modal title="New issue" onClose={() => setShowCreate(false)}>
           <IssueForm
-            projectMembers={projectMembers}
             onSubmit={handleCreate}
             onCancel={() => setShowCreate(false)}
             loading={creating}
@@ -258,27 +220,6 @@ export default function BacklogPage() {
           />
         </Modal>
       )}
-    </div>
-  );
-}
-
-function BacklogSkeleton() {
-  return (
-    <div className={styles.list}>
-      {[...Array(5)].map((_, idx) => (
-        <div key={idx} className={`${styles.row} ${styles.skeletonRow}`} style={{ padding: '14px 16px' }}>
-          <span className={styles.handle} />
-          <span className={styles.orderNum}>{idx + 1}</span>
-          <div className={styles.skeletonLine} style={{ width: '50%' }} />
-          <div className={styles.skeletonBadge} style={{ width: '70px' }} />
-          <div className={styles.skeletonLine} style={{ width: '30px' }} />
-          <div className={styles.skeletonBadge} style={{ width: '60px' }} />
-          <div className={styles.skeletonBadge} style={{ width: '70px' }} />
-          <div className={styles.skeletonBadge} style={{ width: '80px' }} />
-          <div className={styles.skeletonLine} style={{ width: '80px' }} />
-          <div className={styles.skeletonLine} style={{ width: '90px' }} />
-        </div>
-      ))}
     </div>
   );
 }

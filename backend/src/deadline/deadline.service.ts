@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { DeadlineReminderStage } from '@prisma/client';
 
 /**
  * Deadline reminder stages.
@@ -83,9 +82,6 @@ export class DeadlineService {
         },
       });
 
-      const notificationPayloads: Parameters<NotificationsService['createMany']>[0] = [];
-      const reminderRows: { issueId: string; stage: DeadlineReminderStage }[] = [];
-
       for (const issue of issues) {
         const recipients = [issue.assignee, issue.reporter]
           .filter((u): u is NonNullable<typeof u> => Boolean(u?.isActive));
@@ -95,9 +91,9 @@ export class DeadlineService {
           const message = `"${issue.title}" in ${issue.project.name} is due in ${stage.label}.`;
           const overdueMessage = `"${issue.title}" in ${issue.project.name} deadline has arrived — please update the issue status.`;
 
-          notificationPayloads.push({
+          await this.notifications.create({
             userId:    user.id,
-            type:      'DEADLINE_REMINDER' as const,
+            type:      'DEADLINE_REMINDER',
             title:     stage.title,
             message:   stage.key === 'AT_DEADLINE' ? overdueMessage : message,
             issueId:   issue.id,
@@ -110,18 +106,11 @@ export class DeadlineService {
         }
 
         // Mark this stage as sent so re-runs don't double-notify
-        reminderRows.push({ issueId: issue.id, stage: stage.key });
+        await this.prisma.deadlineReminder.create({
+          data: { issueId: issue.id, stage: stage.key },
+        });
 
         totalSent += unique.length;
-      }
-
-      // Batch the fan-out: one insert for notifications, one for reminders,
-      // instead of one round-trip per (issue, user).
-      if (notificationPayloads.length > 0) {
-        await this.notifications.createMany(notificationPayloads);
-      }
-      if (reminderRows.length > 0) {
-        await this.prisma.deadlineReminder.createMany({ data: reminderRows });
       }
     }
 
