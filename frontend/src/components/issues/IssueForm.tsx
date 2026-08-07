@@ -225,13 +225,15 @@ export function IssueForm({
       <div className={styles.row}>
         <div className={styles.field}>
           <label className={styles.label}>Story points</label>
-          <input
-            className={styles.input}
-            type="number"
-            min={1}
-            placeholder="e.g. 3"
-            {...register('storyPoints', { min: 1 })}
-          />
+          <select className={styles.select} {...register('storyPoints')}>
+            <option value="">— none —</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="5">5</option>
+            <option value="8">8</option>
+            <option value="13">13</option>
+          </select>
         </div>
         <div className={styles.field}>
           <label className={styles.label}>Deadline</label>
