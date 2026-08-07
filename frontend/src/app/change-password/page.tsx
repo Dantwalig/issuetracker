@@ -24,6 +24,7 @@ export default function ChangePasswordPage() {
     if (!loading && user && !user.mustChangePassword) {
       router.push('/projects');
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]);
 
   async function handleSubmit(e: React.FormEvent) {

@@ -1,0 +1,118 @@
+.card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  pointer-events: none;
+  width: 800px;
+  background: #161b27;
+  border: 1px solid #2a3044;
+  border-radius: 12px;
+  padding: 40px;
+  box-sizing: border-box;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  color: #e8edf5;
+}
+
+.project {
+  font-weight: 500;
+  font-size: 13px;
+  color: #5a6480;
+  margin-bottom: 16px;
+}
+
+.title {
+  font-weight: 600;
+  font-size: 22px;
+  color: #e8edf5;
+  margin: 0 0 16px 0;
+  line-height: 1.3;
+}
+
+.badges {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 30px;
+}
+
+.badge {
+  font-weight: 500;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.description {
+  font-weight: 400;
+  font-size: 13px;
+  color: #8a95aa;
+  margin-bottom: 20px;
+  line-height: 1.6;
+  white-space: pre-wrap; /* This preserves spaces and newlines if it is plain text! */
+}
+
+.description :global(p) {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+.description :global(p:last-child) {
+  margin-bottom: 0;
+}
+
+.description :global(pre), .description :global(code) {
+  background: #1e2535;
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+.description :global(pre) {
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.description :global(ul), .description :global(ol) {
+  margin-top: 0;
+  padding-left: 20px;
+}
+
+.separator {
+  height: 1px;
+  background: #2a3044;
+  margin: 20px 0;
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  row-gap: 24px;
+  column-gap: 20px;
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metaLabel {
+  font-weight: 500;
+  font-size: 11px;
+  color: #5a6480;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metaValue {
+  font-weight: 400;
+  font-size: 14px;
+  color: #e8edf5;
+}
+
+.watermark {
+  font-weight: 400;
+  font-size: 11px;
+  color: #3a4460;
+  text-align: right;
+  margin-top: 24px;
+}

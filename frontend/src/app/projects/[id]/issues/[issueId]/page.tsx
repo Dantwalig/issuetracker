@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { issuesApi } from '@/lib/issues-api';
 import { projectsApi } from '@/lib/projects-api';
 import { useAuth } from '@/lib/auth-context';
+import { useHeader } from '@/lib/header-context';
 import { canEditIssue, canDeleteIssue, canUpdateIssueStatus, isAdmin } from '@/lib/permissions';
 import { StatusBadge, PriorityBadge, TypeBadge, DeadlineBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -30,6 +31,8 @@ export default function IssueDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const { setBreadcrumbs } = useHeader();
+
 
   const [showEdit, setShowEdit] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -50,6 +53,20 @@ export default function IssueDetailPage() {
     queryKey: ['issue', projectId, issueId],
     queryFn: () => issuesApi.get(projectId, issueId),
   });
+
+  const projectName = project?.name ?? '…';
+  const issueKey = issue?.id ? issue.id.slice(0, 8) : '…';
+
+  useEffect(() => {
+    setBreadcrumbs([
+      { label: 'Projects', href: '/projects' },
+      { label: projectName, href: `/projects/${projectId}` },
+      { label: 'Issues', href: `/projects/${projectId}/issues` },
+      { label: issueKey },
+    ]);
+    return () => setBreadcrumbs([]);
+  }, [setBreadcrumbs, projectId, projectName, issueKey]);
+
 
   const updateMutation = useMutation({
     mutationFn: (data: any) => issuesApi.update(projectId, issueId, data),
@@ -136,16 +153,7 @@ export default function IssueDetailPage() {
       <BackButton href={`/projects/${projectId}/issues`} label="Back to issues" />
 
       <div className={styles.topBar}>
-        <nav className={styles.breadcrumb}>
-          <button className={styles.breadLink} onClick={() => router.push('/projects')}>Projects</button>
-          <span className={styles.sep}>/</span>
-          <button className={styles.breadLink} onClick={() => router.push(`/projects/${projectId}`)}>{project?.name ?? '…'}</button>
-          <span className={styles.sep}>/</span>
-          <button className={styles.breadLink} onClick={() => router.push(`/projects/${projectId}/issues`)}>Issues</button>
-          <span className={styles.sep}>/</span>
-          <span className={styles.breadCurrent}>{issue.id.slice(0, 8)}</span>
-        </nav>
-        <div className={styles.topActions}>
+        <div className={styles.topActions} style={{ marginLeft: 'auto' }}>
           <button className={styles.editBtn} onClick={() => setShowShare(true)}>Share</button>
           {showEditBtn && <button className={styles.editBtn} onClick={() => setShowEdit(true)}>Edit</button>}
           {showStatusOnly && <button className={styles.editBtn} onClick={() => setShowEdit(true)}>Update status</button>}

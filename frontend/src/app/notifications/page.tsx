@@ -85,6 +85,23 @@ function NotifIcon({ type }: { type: string }) {
   return <BellIcon />;
 }
 
+function SkeletonNotifications() {
+  return (
+    <div className={styles.list}>
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div key={i} className={styles.item} style={{ pointerEvents: 'none' }}>
+          <span className={styles.itemIcon} style={{ background: 'var(--bg-3)', borderRadius: '50%' }}></span>
+          <div className={styles.itemBody} style={{ gap: 8, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ width: 140, height: 16, borderRadius: 4, background: 'var(--bg-3)' }} />
+            <div style={{ width: '80%', height: 12, borderRadius: 4, background: 'var(--bg-2)' }} />
+            <div style={{ width: 60, height: 10, borderRadius: 4, background: 'var(--bg-2)' }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function NotificationsPage() {
   const qc = useQueryClient();
   const [activeGroup, setActiveGroup] = useState('All');
@@ -165,7 +182,7 @@ export default function NotificationsPage() {
       </div>
 
       {/* List */}
-      {isLoading && <div className={styles.state}><span className={styles.spinner} /></div>}
+      {isLoading && <SkeletonNotifications />}
       {!isLoading && filtered.length === 0 && (
         <div className={styles.empty}>
           <p>No notifications here.</p>

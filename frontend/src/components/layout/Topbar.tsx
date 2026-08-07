@@ -1,14 +1,17 @@
 'use client';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useQuery } from '@tanstack/react-query';
 import { notificationsApi } from '@/lib/notifications-api';
+import { useHeader } from '@/lib/header-context';
 import { ShortcutsButton } from './ShortcutsButton';
 import styles from './Topbar.module.css';
 
 export function Topbar() {
   const { user } = useAuth();
   const router = useRouter();
+  const { breadcrumbs, actions } = useHeader();
 
   const { data: count = 0 } = useQuery({
     queryKey: ['notifications-unread'],
@@ -19,9 +22,31 @@ export function Topbar() {
 
   return (
     <header className={styles.topbar}>
+      {breadcrumbs.length > 0 && (
+        <nav className={styles.breadcrumbs}>
+          {breadcrumbs.map((crumb, idx) => {
+            const isLast = idx === breadcrumbs.length - 1;
+            return (
+              <span key={idx} className={styles.crumbItem}>
+                {idx > 0 && <span className={styles.sep}>/</span>}
+                {isLast || !crumb.href ? (
+                  <span className={styles.breadCurrent}>{crumb.label}</span>
+                ) : (
+                  <Link href={crumb.href} className={styles.breadLink}>
+                    {crumb.label}
+                  </Link>
+                )}
+              </span>
+            );
+          })}
+        </nav>
+      )}
       <div className={styles.spacer} />
+
       <div className={styles.actions}>
+        {actions && <div className={styles.pageActions}>{actions}</div>}
         <ShortcutsButton />
+
         <button
           className={styles.iconBtn}
           onClick={() => router.push('/notifications')}
