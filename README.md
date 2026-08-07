@@ -178,3 +178,5 @@ backend env vars above; `DATABASE_URL` must be the pooler URL, `DIRECT_URL` the 
 - `PR_STATUS_REPORT.md` — status of the `ft-appReview` branch (perf + UI/UX pass) for reporting
 - `SPRINT_PLAN_ANALYTICS.md` — Sprint A plan: analytics foundation, N+1 audit, Lighthouse gate, status table
 - `MARKDOWN_GUIDE.md` — markdown conventions used across issue descriptions and comments
+
+### *Created by Daniel NTWALI*
