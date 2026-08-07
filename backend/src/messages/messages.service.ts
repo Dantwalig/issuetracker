@@ -13,6 +13,9 @@ export class MessagesService {
   ) {}
 
   async listConversations(userId: string) {
+    // Bound to the most recent 200 messages (desc order). Since we dedupe to
+    // the LATEST message per partner, any conversation with recent activity
+    // survives; older/quiet conversations drop off instead of unbounded growth.
     const messages = await this.prisma.directMessage.findMany({
       where: { OR: [{ senderId: userId }, { receiverId: userId }] },
       include: {
@@ -20,16 +23,29 @@ export class MessagesService {
         receiver: { select: USER_SELECT },
       },
       orderBy: { createdAt: 'desc' },
+      take: 200,
     });
 
     const conversationMap = new Map<string, any>();
     for (const msg of messages) {
       const partner = msg.senderId === userId ? msg.receiver : msg.sender;
       if (!conversationMap.has(partner.id)) {
-        const unreadCount = await this.prisma.directMessage.count({
-          where: { senderId: partner.id, receiverId: userId, isRead: false },
-        });
-        conversationMap.set(partner.id, { partner, lastMessage: msg, unreadCount });
+        conversationMap.set(partner.id, { partner, lastMessage: msg, unreadCount: 0 });
+      }
+    }
+
+    // Single batched query for unread counts across all partners, instead of
+    // one `count` round-trip per conversation.
+    const partnerIds = Array.from(conversationMap.keys());
+    if (partnerIds.length > 0) {
+      const unread = await this.prisma.directMessage.groupBy({
+        by: ['senderId'],
+        where: { senderId: { in: partnerIds }, receiverId: userId, isRead: false },
+        _count: { _all: true },
+      });
+      for (const row of unread) {
+        const convo = conversationMap.get(row.senderId);
+        if (convo) convo.unreadCount = row._count._all;
       }
     }
     return Array.from(conversationMap.values());

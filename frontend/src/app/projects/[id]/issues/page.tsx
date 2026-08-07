@@ -1,10 +1,14 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { issuesApi } from '@/lib/issues-api';
 import { projectsApi } from '@/lib/projects-api';
+import { checklistsApi } from '@/lib/checklists-api';
+import { useHeader } from '@/lib/header-context';
+import { useAuth } from '@/lib/auth-context';
 import { Issue, IssueStatus, IssueUser } from '@/types';
 import { StatusBadge, PriorityBadge, TypeBadge, DeadlineBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -50,14 +54,59 @@ export default function ProjectIssuesPage() {
   const { id: projectId } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
+  const { setBreadcrumbs, setActions } = useHeader();
+  const { user } = useAuth();
+
   const [showCreate, setShowCreate] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<IssueStatus | 'ALL'>('ALL');
-  const [assigneeSearch, setAssigneeSearch] = useState('');
-  const [assigneeFilter, setAssigneeFilter] = useState<string>('ALL');
-  const [titleSearch, setTitleSearch] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('updatedAt');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [creating, setCreating] = useState(false);
+
+  // Read initial states from sessionStorage (locked-in filters)
+  const [statusFilter, setStatusFilter] = useState<IssueStatus | 'ALL'>(() => {
+    if (typeof window !== 'undefined') {
+      return (sessionStorage.getItem('issues_statusFilter') as IssueStatus) || 'ALL';
+    }
+    return 'ALL';
+  });
+  const [assigneeSearch, setAssigneeSearch] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('issues_assigneeSearch') || '';
+    }
+    return '';
+  });
+  const [assigneeFilter, setAssigneeFilter] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('issues_assigneeFilter') || 'ALL';
+    }
+    return 'ALL';
+  });
+  const [titleSearch, setTitleSearch] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('issues_titleSearch') || '';
+    }
+    return '';
+  });
+  const [sortKey, setSortKey] = useState<SortKey>(() => {
+    if (typeof window !== 'undefined') {
+      return (sessionStorage.getItem('issues_sortKey') as SortKey) || 'updatedAt';
+    }
+    return 'updatedAt';
+  });
+  const [sortDir, setSortDir] = useState<SortDir>(() => {
+    if (typeof window !== 'undefined') {
+      return (sessionStorage.getItem('issues_sortDir') as SortDir) || 'desc';
+    }
+    return 'desc';
+  });
+
+  // Keep sessionStorage in sync
+  useEffect(() => {
+    sessionStorage.setItem('issues_statusFilter', statusFilter);
+    sessionStorage.setItem('issues_assigneeSearch', assigneeSearch);
+    sessionStorage.setItem('issues_assigneeFilter', assigneeFilter);
+    sessionStorage.setItem('issues_titleSearch', titleSearch);
+    sessionStorage.setItem('issues_sortKey', sortKey);
+    sessionStorage.setItem('issues_sortDir', sortDir);
+  }, [statusFilter, assigneeSearch, assigneeFilter, titleSearch, sortKey, sortDir]);
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -69,10 +118,32 @@ export default function ProjectIssuesPage() {
     queryFn: () => issuesApi.listByProject(projectId),
   });
 
+  const projectName = project?.name ?? '…';
+
+  useEffect(() => {
+    setBreadcrumbs([
+      { label: 'Projects', href: '/projects' },
+      { label: projectName, href: `/projects/${projectId}` },
+      { label: 'Issues' },
+    ]);
+    setActions(
+      <button className={styles.createBtn} onClick={() => setShowCreate(true)}>
+        <span>+</span> New issue
+      </button>
+    );
+    return () => {
+      setBreadcrumbs([]);
+      setActions(null);
+    };
+  }, [setBreadcrumbs, setActions, projectId, projectName]);
+
   const createMutation = useMutation({
     mutationFn: (data: Omit<Parameters<typeof issuesApi.create>[1], never>) =>
       issuesApi.create(projectId, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['issues', projectId] }); setShowCreate(false); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['issues', projectId] });
+      setShowCreate(false);
+    },
   });
 
   // Derive project members as IssueUser[] for the assignee dropdown
@@ -88,7 +159,7 @@ export default function ProjectIssuesPage() {
   }, [issues]);
 
   // Filter & sort pipeline
-  const filtered = useMemo(() => {
+  const sortedIssues = useMemo(() => {
     let result = issues;
 
     // Status filter
@@ -119,7 +190,10 @@ export default function ProjectIssuesPage() {
 
   function handleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else { setSortKey(key); setSortDir('asc'); }
+    else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
   }
 
   function clearFilters() {
@@ -134,17 +208,60 @@ export default function ProjectIssuesPage() {
   const hasActiveFilters = statusFilter !== 'ALL' || assigneeFilter !== 'ALL' || assigneeSearch.trim() || titleSearch.trim();
 
   // Keyboard shortcuts
-  useShortcut('issues:create', { key: 'n', description: 'Create new issue', group: 'Issues', action: () => setShowCreate(true) });
-  useShortcut('issues:create-escape', { key: 'Escape', description: 'Close dialog / cancel', group: 'Global', action: () => setShowCreate(false), disabled: !showCreate });
-  useShortcut('issues:filter-all', { key: 'a', description: 'Show all issues', group: 'Issues', action: () => setStatusFilter('ALL') });
-  useShortcut('issues:filter-todo', { key: '1', description: 'Filter: To Do', group: 'Issues', action: () => setStatusFilter('TODO') });
-  useShortcut('issues:filter-progress', { key: '2', description: 'Filter: In Progress', group: 'Issues', action: () => setStatusFilter('IN_PROGRESS') });
-  useShortcut('issues:filter-done', { key: '3', description: 'Filter: Done', group: 'Issues', action: () => setStatusFilter('DONE') });
+  useShortcut('issues:create', {
+    key: 'n',
+    description: 'Create new issue',
+    group: 'Issues',
+    action: () => setShowCreate(true),
+  });
+  useShortcut('issues:create-escape', {
+    key: 'Escape',
+    description: 'Close dialog / cancel',
+    group: 'Global',
+    action: () => setShowCreate(false),
+    disabled: !showCreate,
+  });
+  useShortcut('issues:filter-all', {
+    key: 'a',
+    description: 'Show all issues',
+    group: 'Issues',
+    action: () => setStatusFilter('ALL'),
+  });
+  useShortcut('issues:filter-todo', {
+    key: '1',
+    description: 'Filter: To Do',
+    group: 'Issues',
+    action: () => setStatusFilter('TODO'),
+  });
+  useShortcut('issues:filter-progress', {
+    key: '2',
+    description: 'Filter: In Progress',
+    group: 'Issues',
+    action: () => setStatusFilter('IN_PROGRESS'),
+  });
+  useShortcut('issues:filter-done', {
+    key: '3',
+    description: 'Filter: Done',
+    group: 'Issues',
+    action: () => setStatusFilter('DONE'),
+  });
 
-  async function handleCreate(data: any) {
+  async function handleCreate(data: any, checklists?: any[]) {
     setCreating(true);
-    try { await createMutation.mutateAsync(data); }
-    finally { setCreating(false); }
+    try {
+      const created = await createMutation.mutateAsync(data);
+      if (checklists && checklists.length > 0) {
+        for (const list of checklists) {
+          const createdList = await checklistsApi.create(created.id, list.title);
+          for (const item of list.items) {
+            await checklistsApi.addItem(createdList.id, item);
+          }
+        }
+      }
+      qc.invalidateQueries({ queryKey: ['issues', projectId] });
+    } finally {
+      setCreating(false);
+    }
   }
 
   function SortIcon({ col }: { col: SortKey }) {
@@ -154,22 +271,10 @@ export default function ProjectIssuesPage() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.header}>
-        <div className={styles.breadcrumb}>
-          <button className={styles.breadLink} onClick={() => router.push('/projects')}>Projects</button>
-          <span className={styles.sep}>/</span>
-          <button className={styles.breadLink} onClick={() => router.push(`/projects/${projectId}`)}>{project?.name ?? '…'}</button>
-          <span className={styles.sep}>/</span>
-          <span className={styles.breadCurrent}>Issues</span>
-        </div>
-        <button className={styles.createBtn} onClick={() => setShowCreate(true)}>
-          <span>+</span> New issue
-        </button>
-      </div>
-
-      <div className={styles.titleRow}>
-        <h1 className={styles.heading}>Issues</h1>
-        <p className={styles.sub}>{filtered.length} of {issues.length}</p>
+      <div className={styles.titleRow} style={{ marginBottom: '12px' }}>
+        <p className={styles.sub}>
+          {sortedIssues.length} of {issues.length} issue{issues.length !== 1 ? 's' : ''}
+        </p>
       </div>
 
       {/* Status filter pills */}
@@ -202,53 +307,105 @@ export default function ProjectIssuesPage() {
           type="text"
           placeholder="Search by assignee name…"
           value={assigneeSearch}
-          onChange={(e) => { setAssigneeSearch(e.target.value); setAssigneeFilter('ALL'); }}
+          onChange={(e) => {
+            setAssigneeSearch(e.target.value);
+            setAssigneeFilter('ALL');
+          }}
         />
         <select
           className={styles.assigneeSelect}
           value={assigneeFilter}
-          onChange={(e) => { setAssigneeFilter(e.target.value); setAssigneeSearch(''); }}
+          onChange={(e) => {
+            setAssigneeFilter(e.target.value);
+            setAssigneeSearch('');
+          }}
         >
           <option value="ALL">All assignees</option>
           <option value="UNASSIGNED">Unassigned</option>
           {assigneeOptions.map(([id, name]) => (
-            <option key={id} value={id}>{name}</option>
+            <option key={id} value={id}>
+              {name}
+            </option>
           ))}
         </select>
         {hasActiveFilters && (
-          <button className={styles.clearBtn} onClick={clearFilters}>✕ Clear</button>
+          <button className={styles.clearBtn} onClick={clearFilters}>
+            ✕ Clear
+          </button>
+        )}
+        {(user?.role === 'ADMIN' || user?.role === 'SUPERADMIN') && (
+          <button
+            className={styles.reportBtn}
+            onClick={() => {
+              const params = new URLSearchParams();
+              if (statusFilter !== 'ALL') params.set('status', statusFilter);
+              if (assigneeFilter !== 'ALL') params.set('assigneeId', assigneeFilter);
+              if (assigneeSearch.trim()) params.set('assigneeSearch', assigneeSearch);
+              if (titleSearch.trim()) params.set('title', titleSearch);
+              window.open(`/report/projects/${projectId}?${params.toString()}`, '_blank');
+            }}
+            title="Open printable report in a new tab"
+          >
+            🖨️ Print Report
+          </button>
         )}
       </div>
 
-      {isLoading && <div className={styles.state}><span className={styles.spinner} /><span>Loading issues…</span></div>}
+      {isLoading && <TableSkeleton />}
       {isError && <div className={styles.stateError}>Failed to load issues.</div>}
 
-      {!isLoading && !isError && filtered.length === 0 && (
+      {!isLoading && !isError && sortedIssues.length === 0 && (
         <div className={styles.state}>
           <p>{hasActiveFilters ? 'No issues match your filters.' : 'No issues yet.'}</p>
-          {hasActiveFilters
-            ? <button className={styles.inlineCreate} onClick={clearFilters}>Clear filters</button>
-            : <button className={styles.inlineCreate} onClick={() => setShowCreate(true)}>Create the first one →</button>
-          }
+          {hasActiveFilters ? (
+            <button className={styles.inlineCreate} onClick={clearFilters}>
+              Clear filters
+            </button>
+          ) : (
+            <button className={styles.inlineCreate} onClick={() => setShowCreate(true)}>
+              Create the first one →
+            </button>
+          )}
         </div>
       )}
 
-      {!isLoading && filtered.length > 0 && (
+      {!isLoading && sortedIssues.length > 0 && (
         <div className={styles.table}>
           <div className={styles.tableHead}>
-            <button className={styles.thBtn} onClick={() => handleSort('title')}>Title <SortIcon col="title" /></button>
-            <button className={styles.thBtn} onClick={() => handleSort('type')}>Type <SortIcon col="type" /></button>
-            <button className={styles.thBtn} onClick={() => handleSort('status')}>Status <SortIcon col="status" /></button>
-            <button className={styles.thBtn} onClick={() => handleSort('priority')}>Priority <SortIcon col="priority" /></button>
-            <button className={styles.thBtn} onClick={() => handleSort('deadline')}>Deadline <SortIcon col="deadline" /></button>
-            <button className={styles.thBtn} onClick={() => handleSort('storyPoints')}>SP <SortIcon col="storyPoints" /></button>
-            <button className={styles.thBtn} onClick={() => handleSort('assignee')}>Assignee <SortIcon col="assignee" /></button>
-            <button className={styles.thBtn} onClick={() => handleSort('reporter')}>Reporter <SortIcon col="reporter" /></button>
-            <button className={styles.thBtn} onClick={() => handleSort('updatedAt')}>Updated <SortIcon col="updatedAt" /></button>
+            <button className={styles.thBtn} onClick={() => handleSort('title')}>
+              Title <SortIcon col="title" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('type')}>
+              Type <SortIcon col="type" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('status')}>
+              Status <SortIcon col="status" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('priority')}>
+              Priority <SortIcon col="priority" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('deadline')}>
+              Deadline <SortIcon col="deadline" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('storyPoints')}>
+              SP <SortIcon col="storyPoints" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('assignee')}>
+              Assignee <SortIcon col="assignee" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('reporter')}>
+              Reporter <SortIcon col="reporter" />
+            </button>
+            <button className={styles.thBtn} onClick={() => handleSort('updatedAt')}>
+              Updated <SortIcon col="updatedAt" />
+            </button>
           </div>
-          {filtered.map((issue) => (
-            <IssueRow key={issue.id} issue={issue}
-              onClick={() => router.push(`/projects/${projectId}/issues/${issue.id}`)} />
+          {sortedIssues.map((issue) => (
+            <IssueRow
+              key={issue.id}
+              issue={issue}
+              projectId={projectId}
+            />
           ))}
         </div>
       )}
@@ -268,18 +425,71 @@ export default function ProjectIssuesPage() {
   );
 }
 
-function IssueRow({ issue, onClick }: { issue: Issue; onClick: () => void }) {
+function TableSkeleton() {
   return (
-    <div className={styles.tableRow} onClick={onClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onClick()}>
-      <span className={styles.issueTitle}>{issue.title}</span>
-      <span><TypeBadge type={issue.type} /></span>
-      <span><StatusBadge status={issue.status} /></span>
-      <span><PriorityBadge priority={issue.priority} /></span>
-      <span><DeadlineBadge deadline={issue.deadline} status={issue.status} /></span>
-      <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>{issue.storyPoints != null ? issue.storyPoints : '—'}</span>
-      <span className={styles.assignee}>{issue.assignee?.fullName ?? <span className={styles.unassigned}>Unassigned</span>}</span>
-      <span className={styles.reporter}>{issue.reporter?.fullName}</span>
-      <span className={styles.date}>{formatDistanceToNow(new Date(issue.updatedAt), { addSuffix: true })}</span>
+    <div className={styles.table}>
+      <div className={styles.tableHead}>
+        <span>Title</span>
+        <span>Type</span>
+        <span>Status</span>
+        <span>Priority</span>
+        <span>Deadline</span>
+        <span>SP</span>
+        <span>Assignee</span>
+        <span>Reporter</span>
+        <span>Updated</span>
+      </div>
+      {[...Array(5)].map((_, idx) => (
+        <div key={idx} className={`${styles.tableRow} ${styles.skeletonRow}`}>
+          <div className={styles.skeletonLine} style={{ width: '70%' }} />
+          <div className={styles.skeletonBadge} />
+          <div className={styles.skeletonBadge} />
+          <div className={styles.skeletonBadge} />
+          <div className={styles.skeletonBadge} />
+          <div className={styles.skeletonLine} style={{ width: '20px' }} />
+          <div className={styles.skeletonLine} style={{ width: '80px' }} />
+          <div className={styles.skeletonLine} style={{ width: '80px' }} />
+          <div className={styles.skeletonLine} style={{ width: '90px' }} />
+        </div>
+      ))}
     </div>
+  );
+}
+
+function IssueRow({ issue, projectId }: { issue: Issue; projectId: string }) {
+  return (
+    <Link
+      href={`/projects/${projectId}/issues/${issue.id}`}
+      className={styles.tableRow}
+      style={{ textDecoration: 'none', color: 'inherit' }}
+    >
+      <span className={styles.issueTitle} title={issue.title}>
+        {issue.title}
+      </span>
+      <span>
+        <TypeBadge type={issue.type} />
+      </span>
+      <span>
+        <StatusBadge status={issue.status} />
+      </span>
+      <span>
+        <PriorityBadge priority={issue.priority} />
+      </span>
+      <span>
+        <DeadlineBadge deadline={issue.deadline} status={issue.status} />
+      </span>
+      <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>
+        {issue.storyPoints != null ? issue.storyPoints : '—'}
+      </span>
+      <span className={styles.assignee} title={issue.assignee?.fullName ?? 'Unassigned'}>
+        {issue.assignee?.fullName ?? <span className={styles.unassigned}>Unassigned</span>}
+      </span>
+      <span className={styles.reporter} title={issue.reporter?.fullName ?? 'System'}>
+        {issue.reporter?.fullName ?? '—'}
+      </span>
+      <span className={styles.date}>
+        {formatDistanceToNow(new Date(issue.updatedAt), { addSuffix: true })}
+      </span>
+    </Link>
   );
 }

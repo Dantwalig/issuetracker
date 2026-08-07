@@ -253,6 +253,10 @@ model Issue {
   activityLogs ActivityLog[]
   deadlineReminders DeadlineReminder[]
 
+  @@index([projectId])
+  @@index([sprintId])
+  @@index([assigneeId])
+  @@index([reporterId])
   @@map("issues")
 }
 

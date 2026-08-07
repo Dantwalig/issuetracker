@@ -375,3 +375,56 @@
 .dragErrorClose:hover {
   opacity: 1;
 }
+
+/* Skeleton loader styles */
+.skeletonCard {
+  cursor: default !important;
+  pointer-events: none;
+}
+.skeletonCard:hover {
+  border-color: var(--border) !important;
+  box-shadow: none !important;
+}
+.skeletonCount {
+  width: 22px;
+  height: 18px;
+  background: var(--bg-3);
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+}
+.skeletonLine {
+  height: 12px;
+  background: var(--bg-2);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.skeletonBadge {
+  height: 18px;
+  background: var(--bg-2);
+  border-radius: 99px;
+  position: relative;
+  overflow: hidden;
+}
+.skeletonCount::after,
+.skeletonLine::after,
+.skeletonBadge::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmer 1.5s infinite;
+  transform: translateX(-100%);
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+

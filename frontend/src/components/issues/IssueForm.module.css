@@ -161,3 +161,150 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Checklist creation styles */
+.checklistsSection {
+  border-top: 1px dashed var(--border);
+  padding-top: 16px;
+  margin-top: 6px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.addChecklistRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.addChecklistBtn {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  padding: 0 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.addChecklistBtn:hover {
+  background: var(--bg-2);
+  border-color: var(--border-2);
+}
+
+.checklistContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.checklistCard {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.checklistHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.checklistTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.deleteChecklistBtn {
+  background: none;
+  border: none;
+  color: var(--red);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.deleteChecklistBtn:hover {
+  opacity: 0.8;
+}
+
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+
+.itemRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-2);
+  background: var(--bg-3);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.deleteItemBtn {
+  background: none;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.deleteItemBtn:hover {
+  color: var(--red);
+}
+
+.addItemRow {
+  display: flex;
+  gap: 6px;
+}
+
+.miniInput {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: var(--text-1);
+  font-size: 12px;
+  outline: none;
+  flex: 1;
+}
+
+.miniInput:focus {
+  border-color: var(--accent);
+}
+
+.miniBtn {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.miniBtn:hover {
+  background: var(--bg-2);
+}
+

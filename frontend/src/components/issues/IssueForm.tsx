@@ -6,6 +6,12 @@ import { IssueUser, Issue, IssueType, IssueStatus, IssuePriority } from '@/types
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import styles from './IssueForm.module.css';
 
+export interface FormChecklist {
+  id: string;
+  title: string;
+  items: string[];
+}
+
 type IssueFormData = {
   title: string;
   description?: string;
@@ -20,7 +26,7 @@ type IssueFormData = {
 interface Props {
   defaultValues?: Partial<Issue>;
   projectMembers?: IssueUser[];
-  onSubmit: (data: IssueFormData) => Promise<void>;
+  onSubmit: (data: IssueFormData, checklists?: FormChecklist[]) => Promise<void>;
   onCancel: () => void;
   loading: boolean;
   submitLabel?: string;
@@ -51,6 +57,51 @@ export function IssueForm({
 
   const [showPreview, setShowPreview] = useState(false);
   const description = watch('description');
+
+  // Checklists local state
+  const isEditMode = !!defaultValues;
+  const [checklists, setChecklists] = useState<FormChecklist[]>([]);
+  const [newChecklistTitle, setNewChecklistTitle] = useState('');
+  const [newItemTextMap, setNewItemTextMap] = useState<Record<string, string>>({});
+
+  function addChecklist() {
+    const title = newChecklistTitle.trim();
+    if (!title) return;
+    const newId = Math.random().toString(36).substring(2, 9);
+    setChecklists([...checklists, { id: newId, title, items: [] }]);
+    setNewChecklistTitle('');
+  }
+
+  function removeChecklist(id: string) {
+    setChecklists(checklists.filter((c) => c.id !== id));
+  }
+
+  function addChecklistItem(listId: string) {
+    const text = newItemTextMap[listId]?.trim();
+    if (!text) return;
+    setChecklists(
+      checklists.map((c) => {
+        if (c.id === listId) {
+          return { ...c, items: [...c.items, text] };
+        }
+        return c;
+      })
+    );
+    setNewItemTextMap({ ...newItemTextMap, [listId]: '' });
+  }
+
+  function removeChecklistItem(listId: string, itemIdx: number) {
+    setChecklists(
+      checklists.map((c) => {
+        if (c.id === listId) {
+          const nextItems = [...c.items];
+          nextItems.splice(itemIdx, 1);
+          return { ...c, items: nextItems };
+        }
+        return c;
+      })
+    );
+  }
 
   useEffect(() => {
     if (defaultValues) {
@@ -98,7 +149,7 @@ export function IssueForm({
   }
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit(d => onSubmit(sanitize(d)))}>
+    <form className={styles.form} onSubmit={handleSubmit(d => onSubmit(sanitize(d), checklists))}>
       <div className={styles.field}>
         <label className={styles.label}>Title <span className={styles.req}>*</span></label>
         <input
@@ -174,13 +225,15 @@ export function IssueForm({
       <div className={styles.row}>
         <div className={styles.field}>
           <label className={styles.label}>Story points</label>
-          <input
-            className={styles.input}
-            type="number"
-            min={1}
-            placeholder="e.g. 3"
-            {...register('storyPoints', { min: 1 })}
-          />
+          <select className={styles.select} {...register('storyPoints')}>
+            <option value="">— none —</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="5">5</option>
+            <option value="8">8</option>
+            <option value="13">13</option>
+          </select>
         </div>
         <div className={styles.field}>
           <label className={styles.label}>Deadline</label>
@@ -198,6 +251,93 @@ export function IssueForm({
         </select>
       </div>
 
+      {!isEditMode && (
+        <div className={styles.checklistsSection}>
+          <div className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>Checklists</span>
+          </div>
+          <div className={styles.addChecklistRow}>
+            <input
+              type="text"
+              className={styles.input}
+              placeholder="Checklist title (e.g. Definition of Done)…"
+              value={newChecklistTitle}
+              onChange={(e) => setNewChecklistTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addChecklist();
+                }
+              }}
+            />
+            <button
+              type="button"
+              className={styles.addChecklistBtn}
+              onClick={addChecklist}
+            >
+              Add Checklist
+            </button>
+          </div>
+
+          <div className={styles.checklistContainer}>
+            {checklists.map((list) => (
+              <div key={list.id} className={styles.checklistCard}>
+                <div className={styles.checklistHeader}>
+                  <span className={styles.checklistTitle}>{list.title}</span>
+                  <button
+                    type="button"
+                    className={styles.deleteChecklistBtn}
+                    onClick={() => removeChecklist(list.id)}
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <div className={styles.itemsList}>
+                  {list.items.map((item, idx) => (
+                    <div key={idx} className={styles.itemRow}>
+                      <span>{item}</span>
+                      <button
+                        type="button"
+                        className={styles.deleteItemBtn}
+                        onClick={() => removeChecklistItem(list.id, idx)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className={styles.addItemRow}>
+                  <input
+                    type="text"
+                    className={styles.miniInput}
+                    placeholder="Add item…"
+                    value={newItemTextMap[list.id] ?? ''}
+                    onChange={(e) =>
+                      setNewItemTextMap({ ...newItemTextMap, [list.id]: e.target.value })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addChecklistItem(list.id);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className={styles.miniBtn}
+                    onClick={() => addChecklistItem(list.id)}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className={styles.actions}>
         <button type="button" className={styles.cancelBtn} onClick={onCancel} disabled={loading}>Cancel</button>
         <button type="submit" className={styles.submitBtn} disabled={loading}>{loading ? 'Saving…' : submitLabel}</button>
@@ -205,3 +345,4 @@ export function IssueForm({
     </form>
   );
 }
+
