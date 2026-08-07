@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { sprintsApi } from '@/lib/sprints-api';
 import { projectsApi } from '@/lib/projects-api';
 import { useAuth } from '@/lib/auth-context';
+import { useHeader } from '@/lib/header-context';
 import { canManageSprints } from '@/lib/permissions';
 import { Issue, Sprint } from '@/types';
 import { StatusBadge, PriorityBadge, TypeBadge } from '@/components/ui/Badge';
@@ -22,6 +23,8 @@ export default function SprintDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const { setBreadcrumbs } = useHeader();
+
 
   const [showEdit, setShowEdit] = useState(false);
   const [editName, setEditName] = useState('');
@@ -47,6 +50,20 @@ export default function SprintDetailPage() {
     queryKey: ['sprint', projectId, sprintId],
     queryFn: () => sprintsApi.get(projectId, sprintId),
   });
+
+  const projectName = project?.name ?? '…';
+  const sprintName = sprint?.name ?? '…';
+
+  useEffect(() => {
+    setBreadcrumbs([
+      { label: 'Projects', href: '/projects' },
+      { label: projectName, href: `/projects/${projectId}` },
+      { label: 'Sprints', href: `/projects/${projectId}/sprints` },
+      { label: sprintName },
+    ]);
+    return () => setBreadcrumbs([]);
+  }, [setBreadcrumbs, projectId, projectName, sprintName]);
+
 
   const { data: sprintIssues = [], isLoading: issuesLoading } = useQuery({
     queryKey: ['sprintIssues', sprintId],
@@ -166,18 +183,8 @@ export default function SprintDetailPage() {
   return (
     <div className={styles.page}>
       <BackButton href={`/projects/${projectId}/sprints`} label="Back to sprints" />
-      {/* Breadcrumb */}
       <div className={styles.topBar}>
-        <nav className={styles.breadcrumb}>
-          <button className={styles.breadLink} onClick={() => router.push('/projects')}>Projects</button>
-          <span className={styles.sep}>/</span>
-          <button className={styles.breadLink} onClick={() => router.push(`/projects/${projectId}`)}>{project?.name ?? '…'}</button>
-          <span className={styles.sep}>/</span>
-          <button className={styles.breadLink} onClick={() => router.push(`/projects/${projectId}/sprints`)}>Sprints</button>
-          <span className={styles.sep}>/</span>
-          <span className={styles.breadCurrent}>{sprint.name}</span>
-        </nav>
-        <div className={styles.topActions}>
+        <div className={styles.topActions} style={{ marginLeft: 'auto' }}>
           {isManager && !isCompleted && (
             <button className={styles.editBtn} onClick={openEdit}>Edit</button>
           )}

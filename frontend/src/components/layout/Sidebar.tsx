@@ -13,8 +13,15 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const isPrivileged = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
-  const active = (path: string) =>
-    `${styles.navItem} ${pathname.startsWith(path) ? styles.active : ''}`;
+
+  // Use exact match for /projects so the nav item only highlights on the
+  // projects list itself, not on every project sub-page (/projects/[id]/...)
+  const active = (path: string, exact = false) => {
+    const isActive = exact
+      ? pathname === path
+      : pathname.startsWith(path);
+    return `${styles.navItem} ${isActive ? styles.active : ''}`;
+  };
 
   const { data: dmUnread = 0 } = useQuery({
     queryKey: ['dm-unread'],
@@ -72,7 +79,7 @@ export function Sidebar() {
         <nav className={styles.nav}>
           <Link href="/my-work" className={active('/my-work')}><MyWorkIcon /> My Work</Link>
           <Link href="/teams" className={active('/teams')}><TeamsIcon /> Teams</Link>
-          <Link href="/projects" className={active('/projects')}><ProjectsIcon /> Projects</Link>
+          <Link href="/projects" className={active('/projects', true)}><ProjectsIcon /> Projects</Link>
           <Link href="/notifications" className={active('/notifications')}><BellIcon /> Notifications</Link>
           <Link href="/messages" className={active('/messages')}>
             <ChatIcon />

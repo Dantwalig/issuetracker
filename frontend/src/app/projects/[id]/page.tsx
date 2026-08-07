@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { projectsApi } from '@/lib/projects-api';
@@ -8,16 +8,19 @@ import { teamsApi } from '@/lib/teams-api';
 import { usersApi } from '@/lib/users-api';
 import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/lib/auth-context';
+import { useHeader } from '@/lib/header-context';
 import { format } from 'date-fns';
 import styles from './page.module.css';
 import { DeleteModal } from '@/components/ui/DeleteModal';
 import { recycleBinApi } from '@/lib/recycle-bin-api';
+
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
   const { user: currentUser } = useAuth();
+  const { setBreadcrumbs } = useHeader();
   const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERADMIN';
 
   const [showAddMember, setShowAddMember] = useState(false);
@@ -34,6 +37,17 @@ export default function ProjectDetailPage() {
     queryKey: ['project', id],
     queryFn: () => projectsApi.get(id),
   });
+
+  const projectName = project?.name ?? '…';
+
+  useEffect(() => {
+    setBreadcrumbs([
+      { label: 'Projects', href: '/projects' },
+      { label: projectName },
+    ]);
+    return () => setBreadcrumbs([]);
+  }, [setBreadcrumbs, projectName]);
+
 
   const { data: allUsers = [] } = useQuery({
     queryKey: ['users'],
@@ -102,8 +116,7 @@ export default function ProjectDetailPage() {
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
-        <button className={styles.backBtn} onClick={() => router.push('/projects')}>← All projects</button>
-        <div className={styles.topActions}>
+        <div className={styles.topActions} style={{ marginLeft: 'auto' }}>
           {isAdmin && <button className={styles.editBtn} onClick={openEdit}>Edit</button>}
           {isAdmin && <button onClick={() => setShowDelete(true)} style={{background:'none',border:'1px solid var(--danger,#ef4444)',color:'var(--danger,#ef4444)',padding:'0 12px',height:32,borderRadius:'var(--radius)',fontSize:13,cursor:'pointer'}}>Delete</button>}
           <button className={styles.issuesBtn} onClick={() => router.push(`/projects/${id}/issues`)}>
